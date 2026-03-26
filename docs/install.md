@@ -47,7 +47,8 @@ npx --yes skills add <owner/repo> \
   --skill hwp \
   --skill kbo-results \
   --skill lotto-results \
-  --skill kakaotalk-mac
+  --skill kakaotalk-mac \
+  --skill zipcode-search
 ```
 
 인증이 필요한 기능만 부분 설치할 때도 `k-skill-setup` 은 같이 넣는다.

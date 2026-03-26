@@ -23,6 +23,7 @@ Claude code, codex, opencode 등 각종 코딩 에이전트 지원합니다.
 | KBO 경기 결과 조회 | 날짜별 경기 일정, 결과, 팀별 필터링 | 불필요 | [KBO 결과 가이드](docs/features/kbo-results.md) |
 | 로또 당첨 확인 | 최신 회차, 특정 회차, 번호 대조 | 불필요 | [로또 결과 가이드](docs/features/lotto-results.md) |
 | HWP 문서 처리 | `.hwp` → JSON/Markdown/HTML 변환, 이미지 추출, 배치 처리, Windows 직접 제어 선택 | 불필요 | [HWP 문서 처리 가이드](docs/features/hwp.md) |
+| 우편번호 검색 | 주소 키워드로 공식 우체국 우편번호 조회 | 불필요 | [우편번호 검색 가이드](docs/features/zipcode-search.md) |
 
 > 참고: **KTX 예매는 현재 작동하지 않습니다.**
 
@@ -54,6 +55,7 @@ Claude code, codex, opencode 등 각종 코딩 에이전트 지원합니다.
 - [KBO 경기 결과 조회](docs/features/kbo-results.md)
 - [로또 당첨 확인](docs/features/lotto-results.md)
 - [HWP 문서 처리](docs/features/hwp.md)
+- [우편번호 검색](docs/features/zipcode-search.md)
 - [릴리스/배포 가이드](docs/releasing.md)
 
 설치 기본 흐름은 "전체 스킬 설치 → `k-skill-setup` 실행 → 개별 기능 사용" 입니다.

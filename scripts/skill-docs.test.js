@@ -87,3 +87,50 @@ test("kakaotalk-mac skill documents safe macOS kakaocli usage", () => {
   assert.match(skill, /--me/);
   assert.match(skill, /confirm before sending/i);
 });
+
+test("repository docs advertise the zipcode-search skill across the documented surfaces", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const roadmap = read(path.join("docs", "roadmap.md"));
+  const sources = read(path.join("docs", "sources.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "zipcode-search.md");
+
+  assert.ok(fs.existsSync(featureDocPath), "expected docs/features/zipcode-search.md to exist");
+  assert.match(readme, /\| 우편번호 검색 \|/);
+  assert.match(readme, /\[우편번호 검색 가이드\]\(docs\/features\/zipcode-search\.md\)/);
+  assert.match(install, /--skill zipcode-search/);
+  assert.match(roadmap, /우편번호 검색/);
+  assert.match(sources, /우체국 도로명주소 검색: https:\/\/parcel\.epost\.go\.kr\/parcel\/comm\/zipcode\/comm_newzipcd_list\.jsp/);
+});
+
+test("zipcode-search docs lock the official ePost extraction flow and reliable transport example", () => {
+  const skillPath = path.join(repoRoot, "zipcode-search", "SKILL.md");
+
+  assert.ok(fs.existsSync(skillPath), "expected zipcode-search/SKILL.md to exist");
+
+  const skill = read(path.join("zipcode-search", "SKILL.md"));
+  const featureDoc = read(path.join("docs", "features", "zipcode-search.md"));
+
+  assert.match(skill, /^name: zipcode-search$/m);
+
+  for (const doc of [skill, featureDoc]) {
+    assert.match(doc, /parcel\.epost\.go\.kr\/parcel\/comm\/zipcode\/comm_newzipcd_list\.jsp/);
+    assert.match(doc, /sch_zipcode/);
+    assert.match(doc, /sch_address1/);
+    assert.match(doc, /sch_bdNm/);
+    assert.match(doc, /curl --http1\.1 --tls-max 1\.2/);
+    assert.match(doc, /--max-time/);
+    assert.match(doc, /"--retry",\s+"3"/);
+    assert.match(doc, /--retry-all-errors/);
+    assert.match(doc, /"--retry-delay",\s+"1"/);
+    assert.doesNotMatch(doc, /urllib\.request/);
+    assert.doesNotMatch(doc, /urlopen/);
+  }
+
+  assert.match(skill, /검색 결과가 없으면/i);
+  assert.doesNotMatch(skill, /timeout\s*=/);
+  assert.doesNotMatch(featureDoc, /timeout\s*=/);
+  assert.match(skill, /`curl` 자체 제한/);
+  assert.match(featureDoc, /프로토콜\/클라이언트 제약/i);
+  assert.match(featureDoc, /`curl` 자체 제한/);
+});
