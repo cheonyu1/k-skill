@@ -27,13 +27,24 @@ test("hwp skill documents environment-aware routing and supported operations", (
   assert.match(skill, /batch/i);
 });
 
+test("hwp skill documents inline image verification for markdown output", () => {
+  const skill = read(path.join("hwp", "SKILL.md"));
+
+  assert.match(skill, /hwpjs to-markdown document\.hwp -o output\.md --include-images/);
+  assert.match(skill, /Markdown:.*(data:|base64)/);
+  assert.doesNotMatch(skill, /Markdown:.*이미지 경로 생성 여부 확인/);
+});
+
 test("repository docs advertise the hwp skill", () => {
   const readme = read("README.md");
   const install = read(path.join("docs", "install.md"));
   const featureDocPath = path.join(repoRoot, "docs", "features", "hwp.md");
+  const featureDoc = read(path.join("docs", "features", "hwp.md"));
 
   assert.ok(fs.existsSync(featureDocPath), "expected docs/features/hwp.md to exist");
   assert.match(readme, /\| HWP 문서 처리 \|/);
   assert.match(readme, /\[HWP 문서 처리\]\(docs\/features\/hwp\.md\)/);
   assert.match(install, /--skill hwp/);
+  assert.match(featureDoc, /--include-images/);
+  assert.match(featureDoc, /(data:|base64)/);
 });

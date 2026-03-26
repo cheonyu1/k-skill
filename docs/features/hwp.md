@@ -56,6 +56,8 @@ hwpjs to-json document.hwp -o output.json --pretty
 hwpjs to-markdown document.hwp -o output.md --include-images
 ```
 
+`--include-images` 는 이미지 파일 경로를 따로 만드는 대신 Markdown 안에 base64 `data:` URI로 포함한다.
+
 ### HTML 변환
 
 ```bash
