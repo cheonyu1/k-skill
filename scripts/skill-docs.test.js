@@ -9,8 +9,12 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
-function extractQuotedKeys(block, indent) {
-  return [...block.matchAll(new RegExp(`^ {${indent}}"([^"]+)":`, "gm"))].map((match) => match[1]);
+function extractQuotedEntries(block, indent) {
+  return block
+    .split("\n")
+    .map((line) => line.match(new RegExp(`^ {${indent}}"([^"]+)":\\s*(.+?)(?:,)?$`)))
+    .filter(Boolean)
+    .map(([, key, value]) => [key, value.trim()]);
 }
 
 function findPrintedObjectBlock(doc, carrier) {
@@ -212,13 +216,39 @@ test("delivery-tracking skill documents official CJ and ePost flows with extensi
 test("delivery-tracking published examples lock a shared normalized non-PII schema", () => {
   const skill = read(path.join("delivery-tracking", "SKILL.md"));
   const featureDoc = read(path.join("docs", "features", "delivery-tracking.md"));
-  const expectedTopLevelKeys = {
-    cj: ["carrier", "invoice", "status_code", "status", "timestamp", "location", "event_count", "recent_events"],
-    epost: ["carrier", "invoice", "status", "timestamp", "location", "event_count", "recent_events"],
+  const expectedTopLevelEntries = {
+    cj: [
+      ["carrier", '"cj"'],
+      ["invoice", 'payload["parcelDetailResultMap"]["paramInvcNo"]'],
+      ["status_code", 'latest.get("crgSt")'],
+      ["status", 'status_map.get(latest.get("crgSt"), latest.get("scanNm") or "알수없음")'],
+      ["timestamp", 'latest.get("dTime")'],
+      ["location", 'latest.get("regBranNm")'],
+      ["event_count", "len(events)"],
+      ["recent_events", "normalized_events[-min(3, len(normalized_events)):]"],
+    ],
+    epost: [
+      ["carrier", '"epost"'],
+      ["invoice", 'clean(summary.group("tracking"))'],
+      ["status", 'clean(summary.group("result"))'],
+      ["timestamp", 'latest_event["timestamp"] if latest_event else None'],
+      ["location", 'latest_event["location"] if latest_event else None'],
+      ["event_count", "len(normalized_events)"],
+      ["recent_events", "normalized_events[-min(3, len(normalized_events)):]"],
+    ],
   };
-  const expectedRecentEventKeys = {
-    cj: ["timestamp", "location", "status_code", "status"],
-    epost: ["timestamp", "location", "status"],
+  const expectedRecentEventEntries = {
+    cj: [
+      ["timestamp", 'event.get("dTime")'],
+      ["location", 'event.get("regBranNm")'],
+      ["status_code", 'event.get("crgSt")'],
+      ["status", 'status_map.get(event.get("crgSt"), event.get("scanNm") or "알수없음")'],
+    ],
+    epost: [
+      ["timestamp", 'f"{day} {time_}"'],
+      ["location", "clean_location(location)"],
+      ["status", "clean(status)"],
+    ],
   };
 
   assert.doesNotMatch(skill, /"message":\s*latest\.get\("crgNm"\)/);
@@ -269,30 +299,30 @@ test("delivery-tracking published examples lock a shared normalized non-PII sche
     ["feature doc", featureDoc],
   ]) {
     assert.deepEqual(
-      extractQuotedKeys(findPrintedObjectBlock(doc, "cj"), 4),
-      expectedTopLevelKeys.cj,
-      `${label} CJ example must keep the exact normalized top-level key set`,
+      extractQuotedEntries(findPrintedObjectBlock(doc, "cj"), 4),
+      expectedTopLevelEntries.cj,
+      `${label} CJ example must keep the exact normalized top-level mapping`,
     );
     assert.deepEqual(
-      extractQuotedKeys(findPrintedObjectBlock(doc, "epost"), 4),
-      expectedTopLevelKeys.epost,
-      `${label} ePost example must keep the exact normalized top-level key set`,
+      extractQuotedEntries(findPrintedObjectBlock(doc, "epost"), 4),
+      expectedTopLevelEntries.epost,
+      `${label} ePost example must keep the exact normalized top-level mapping`,
     );
     assert.deepEqual(
-      extractQuotedKeys(
+      extractQuotedEntries(
         findRecentEventsBlock(doc, "cj"),
         8,
       ),
-      expectedRecentEventKeys.cj,
-      `${label} CJ recent_events entries must keep the exact normalized key set`,
+      expectedRecentEventEntries.cj,
+      `${label} CJ recent_events entries must keep the exact normalized mapping`,
     );
     assert.deepEqual(
-      extractQuotedKeys(
+      extractQuotedEntries(
         findRecentEventsBlock(doc, "epost"),
         8,
       ),
-      expectedRecentEventKeys.epost,
-      `${label} ePost recent_events entries must keep the exact normalized key set`,
+      expectedRecentEventEntries.epost,
+      `${label} ePost recent_events entries must keep the exact normalized mapping`,
     );
   }
 
