@@ -191,17 +191,29 @@ test("delivery-tracking docs avoid raw CJ personal fields in published examples"
   const skill = read(path.join("delivery-tracking", "SKILL.md"));
   const featureDoc = read(path.join("docs", "features", "delivery-tracking.md"));
 
-  assert.doesNotMatch(skill, /"message":\s*latest\.get\("crgNm"\)/);
-  assert.doesNotMatch(
-    featureDoc,
-    /print\(json\.dumps\(payload\["parcelDetailResultMap"\]\["resultList"\]\[-1\],\s*ensure_ascii=False,\s*indent=2\)\)/,
-  );
-
   for (const doc of [skill, featureDoc]) {
+    assert.doesNotMatch(doc, /"message":\s*latest\.get\("crgNm"\)/);
+    assert.doesNotMatch(
+      doc,
+      /print\(json\.dumps\(payload\["parcelDetailResultMap"\]\["resultList"\]\[-1\],\s*ensure_ascii=False,\s*indent=2\)\)/,
+    );
     assert.match(doc, /"status_code":\s*latest\.get\("crgSt"\)/);
     assert.match(doc, /"status":\s*status_map\.get\(latest\.get\("crgSt"\),/);
     assert.match(doc, /"timestamp":\s*latest\.get\("dTime"\)/);
     assert.match(doc, /"location":\s*latest\.get\("regBranNm"\)/);
     assert.match(doc, /"event_count":\s*len\(events\)/);
+  }
+
+  assert.doesNotMatch(skill, /"delivered_to":\s*clean\(summary\.group\("delivered_to"\)\)/);
+  assert.doesNotMatch(skill, /"latest_event":\s*normalized_events\[-1\]\s*if normalized_events else None/);
+  assert.doesNotMatch(featureDoc, /"delivered_to":/);
+  assert.doesNotMatch(featureDoc, /"delivery_result":/);
+
+  for (const doc of [skill, featureDoc]) {
+    assert.match(doc, /"status":\s*clean\(summary\.group\(/);
+    assert.match(doc, /"event_count":\s*len\(normalized_events\)/);
+    assert.match(doc, /"latest_event_date":\s*latest_event\.get\("date"\) if latest_event else None/);
+    assert.match(doc, /"latest_event_time":\s*latest_event\.get\("time"\) if latest_event else None/);
+    assert.match(doc, /"latest_event_location":\s*latest_event\.get\("location"\) if latest_event else None/);
   }
 });

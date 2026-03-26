@@ -147,15 +147,41 @@ if not summary:
 def clean(raw: str) -> str:
     return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", raw)).split())
 
+events = re.findall(
+    r"<tr>\s*<td>(\d{4}\.\d{2}\.\d{2})</td>\s*"
+    r"<td>(\d{2}:\d{2})</td>\s*"
+    r"<td>(.*?)</td>\s*"
+    r"<td>\s*<span class=\"evtnm\">(.*?)</span>(.*?)</td>\s*</tr>",
+    page,
+    re.S,
+)
+
+normalized_events = [
+    {
+        "date": day,
+        "time": time_,
+        "location": clean(location),
+        "status": clean(status),
+    }
+    for day, time_, location, status, detail in events
+]
+
+latest_event = normalized_events[-1] if normalized_events else None
+
 print({
+    "carrier": "epost",
     "tracking_no": clean(summary.group(1)),
-    "delivery_result": clean(summary.group(6)),
+    "status": clean(summary.group(6)),
+    "event_count": len(normalized_events),
+    "latest_event_date": latest_event.get("date") if latest_event else None,
+    "latest_event_time": latest_event.get("time") if latest_event else None,
+    "latest_event_location": latest_event.get("location") if latest_event else None,
 })
 PY
 rm -f "$tmp_html"
 ```
 
-우체국은 HTML 응답이라 기본정보 `table_col` 과 상세 `processTable` 을 파싱해야 한다.
+우체국은 HTML 응답이라 기본정보 `table_col` 과 상세 `processTable` 을 파싱해야 한다. published 예시는 현재 상태, 이벤트 수, 최신 이벤트 시각/위치처럼 배송 상태 확인에 필요한 필드만 남기고 수령인/상세 메모 원문은 그대로 보여주지 않는다.
 
 ## 결과 정리 기준
 

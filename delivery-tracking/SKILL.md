@@ -226,24 +226,26 @@ normalized_events = [
         "time": time_,
         "location": clean(location),
         "status": clean(status),
-        "detail": clean(detail),
     }
     for day, time_, location, status, detail in events
 ]
 
+latest_event = normalized_events[-1] if normalized_events else None
+
 print({
     "carrier": "epost",
     "tracking_no": clean(summary.group("tracking")),
-    "delivery_result": clean(summary.group("result")),
-    "delivered_to": clean(summary.group("delivered_to")),
+    "status": clean(summary.group("result")),
     "event_count": len(normalized_events),
-    "latest_event": normalized_events[-1] if normalized_events else None,
+    "latest_event_date": latest_event.get("date") if latest_event else None,
+    "latest_event_time": latest_event.get("time") if latest_event else None,
+    "latest_event_location": latest_event.get("location") if latest_event else None,
 })
 PY
 rm -f "$tmp_html"
 ```
 
-우체국 기본정보 테이블은 `등기번호`, `보내는 분/접수일자`, `받는 분`, `수령인/배달일자`, `취급구분`, `배달결과` 순서를 사용하고, 상세 이벤트는 `processTable` 아래 `날짜 / 시간 / 발생국 / 처리현황` 행을 읽으면 된다.
+우체국 기본정보 테이블은 `등기번호`, `보내는 분/접수일자`, `받는 분`, `수령인/배달일자`, `취급구분`, `배달결과` 순서를 사용하고, 상세 이벤트는 `processTable` 아래 `날짜 / 시간 / 발생국 / 처리현황` 행을 읽으면 된다. published 예시는 `tracking_no`, 현재 상태, 이벤트 수, 최신 이벤트 시각/위치처럼 배송 상태에 필요한 값만 남기고 수령인/상세 메모 원문은 그대로 노출하지 않는다.
 
 ### 3. Normalize for humans
 
