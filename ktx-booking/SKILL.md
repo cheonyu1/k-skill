@@ -50,7 +50,7 @@ metadata:
 - 희망 시작 시각: `HHMMSS`
 - 인원 수와 승객 유형
 - 좌석 선호
-- 예약 시 선택할 `--train-index`
+- 조회 결과에서 복사한 `train_id`
 
 ## Workflow
 
@@ -92,6 +92,7 @@ sops exec-env "$HOME/.config/k-skill/secrets.env" \
 예매 전에 항상 아래를 확인한다.
 
 - `index`
+- `train_id`
 - 출발/도착 시각
 - KTX 여부
 - 일반실/특실 가능 여부
@@ -99,12 +100,12 @@ sops exec-env "$HOME/.config/k-skill/secrets.env" \
 
 ### 4. Reserve only after the target train is unambiguous
 
-조회 결과의 `index` 를 고른 뒤에만 예약한다.
+조회 결과의 `train_id` 를 고른 뒤에만 예약한다. 이 값은 helper 가 열차 번호/운행일/시각/역 코드를 묶어 만든 stable selector 이므로, 재조회 시 같은 열차가 아직 있으면 그대로 잡고 없으면 실패한다.
 
 ```bash
 SOPS_AGE_KEY_FILE="$HOME/.config/k-skill/age/keys.txt" \
 sops exec-env "$HOME/.config/k-skill/secrets.env" \
-  'python3 scripts/ktx_booking.py reserve 서울 부산 20260328 090000 --train-index 1 --seat-option general-first'
+  'python3 scripts/ktx_booking.py reserve 서울 부산 20260328 090000 --train-id <train_id> --seat-option general-first'
 ```
 
 응답에는 예약번호, 운임, 구입기한이 포함된다. **결제는 자동화하지 않는다.**

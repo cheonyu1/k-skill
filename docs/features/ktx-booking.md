@@ -28,7 +28,7 @@
 - 희망 시작 시각: `HHMMSS`
 - 인원 수와 승객 유형
 - 좌석 선호
-- 예약 시 선택할 `--train-index`
+- 조회 결과에서 복사한 `train_id`
 
 ## 왜 helper 를 쓰는가
 
@@ -46,7 +46,7 @@
 1. `korail2` 패키지가 없으면 다른 방법으로 우회하지 말고 먼저 전역 설치한다.
 2. `KSKILL_KTX_ID`, `KSKILL_KTX_PASSWORD` 가 없으면 채팅에 붙여 넣게 하지 말고 로컬 secrets 등록 절차를 안내한다.
 3. helper 로 먼저 열차를 조회한다.
-4. 후보 열차의 `index`, 출발/도착 시각, KTX 여부, 좌석 여부를 보여준다.
+4. 후보 열차의 `index`, `train_id`, 출발/도착 시각, KTX 여부, 좌석 여부를 보여준다.
 5. 대상 열차가 명확할 때만 예약한다.
 6. 예약 확인/취소는 대상 예약을 다시 식별한 뒤 진행한다.
 
@@ -62,12 +62,14 @@ sops exec-env "$HOME/.config/k-skill/secrets.env" \
 
 좌석이 없는 열차까지 같이 보고 싶으면 `--include-no-seats`, 예약 대기 가능 열차도 같이 보고 싶으면 `--include-waiting-list` 를 붙인다.
 
+응답 JSON 의 `train_id` 는 검색 시점의 정확한 열차를 가리키는 stable selector 다. 예약할 때는 이 값을 그대로 복사해서 쓴다. 같은 열차가 더 이상 조회되지 않으면 helper 가 실패하고 새로 조회하게 만든다.
+
 예약:
 
 ```bash
 SOPS_AGE_KEY_FILE="$HOME/.config/k-skill/age/keys.txt" \
 sops exec-env "$HOME/.config/k-skill/secrets.env" \
-  'python3 scripts/ktx_booking.py reserve 서울 부산 20260328 090000 --train-index 1 --seat-option general-first'
+  'python3 scripts/ktx_booking.py reserve 서울 부산 20260328 090000 --train-id <train_id> --seat-option general-first'
 ```
 
 좌석이 없을 때 예약 대기까지 시도하려면 조회 단계에서도 `--include-waiting-list` 를 켜고, 예약 단계에서 `--try-waiting` 을 추가한다.

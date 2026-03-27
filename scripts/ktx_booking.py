@@ -45,6 +45,20 @@ RESERVE_OPTION_MAP = {
     "special-first": ReserveOption.SPECIAL_FIRST,
     "special-only": ReserveOption.SPECIAL_ONLY,
 }
+TRAIN_ID_PREFIX = "ktx:v1:"
+TRAIN_ID_INVALID_MESSAGE = "train_id is invalid; rerun search and copy a fresh train_id"
+TRAIN_ID_STALE_MESSAGE = "train_id no longer matches any current search result; rerun search and choose a fresh train_id"
+TRAIN_ID_FIELDS = (
+    "train_no",
+    "dep_date",
+    "dep_time",
+    "arr_date",
+    "arr_time",
+    "run_date",
+    "train_group",
+    "dep_code",
+    "arr_code",
+)
 
 
 class DynaPathMasterEngine:
@@ -440,9 +454,45 @@ def parse_passengers(args: argparse.Namespace) -> list[Passenger]:
     return passengers
 
 
+def build_train_id_payload(train) -> dict[str, str]:
+    return {field: getattr(train, field) for field in TRAIN_ID_FIELDS}
+
+
+def build_train_id(train) -> str:
+    payload = json.dumps(build_train_id_payload(train), ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    encoded = base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+    return f"{TRAIN_ID_PREFIX}{encoded}"
+
+
+def parse_train_id(train_id: str) -> dict[str, str]:
+    if not train_id.startswith(TRAIN_ID_PREFIX):
+        raise SystemExit("train_id must start with ktx:v1:")
+    encoded = train_id.removeprefix(TRAIN_ID_PREFIX)
+    padded = encoded + ("=" * ((4 - len(encoded) % 4) % 4))
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
+    except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise SystemExit(TRAIN_ID_INVALID_MESSAGE) from exc
+    if not isinstance(payload, dict):
+        raise SystemExit(TRAIN_ID_INVALID_MESSAGE)
+    invalid_fields = [field for field in TRAIN_ID_FIELDS if not isinstance(payload.get(field), str) or not payload[field]]
+    if invalid_fields:
+        raise SystemExit(TRAIN_ID_INVALID_MESSAGE)
+    return {field: payload[field] for field in TRAIN_ID_FIELDS}
+
+
+def find_train_by_id(trains, train_id: str):
+    expected = parse_train_id(train_id)
+    for train in trains:
+        if build_train_id_payload(train) == expected:
+            return train
+    return None
+
+
 def normalize_train(train, index: int) -> dict[str, object]:
     return {
         "index": index,
+        "train_id": build_train_id(train),
         "train_no": train.train_no,
         "train_type": train.train_type_name,
         "dep_name": train.dep_name,
@@ -532,10 +582,11 @@ def command_reserve(args: argparse.Namespace) -> None:
         include_no_seats=args.include_no_seats,
         include_waiting_list=args.include_waiting_list,
     )
-    if args.train_index < 1 or args.train_index > len(trains):
-        raise SystemExit(f"train index must be between 1 and {len(trains)}")
+    selected_train = find_train_by_id(trains, args.train_id)
+    if selected_train is None:
+        raise SystemExit(TRAIN_ID_STALE_MESSAGE)
     reservation = client.reserve(
-        trains[args.train_index - 1],
+        selected_train,
         passengers=passengers,
         option=RESERVE_OPTION_MAP[args.seat_option],
         try_waiting=args.try_waiting,
@@ -586,7 +637,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     reserve_parser = subparsers.add_parser("reserve", help="조회 결과 중 하나를 예약합니다")
     add_common_trip_args(reserve_parser)
-    reserve_parser.add_argument("--train-index", type=int, required=True, help="search 결과의 1-based index")
+    reserve_parser.add_argument("--train-id", required=True, help="search 결과에서 복사한 stable train_id")
     reserve_parser.add_argument("--seat-option", choices=sorted(RESERVE_OPTION_MAP), default="general-first")
     reserve_parser.add_argument("--include-no-seats", action="store_true", help="검색 시 매진 열차도 포함")
     reserve_parser.add_argument("--include-waiting-list", action="store_true", help="검색 시 예약대기 열차도 포함")

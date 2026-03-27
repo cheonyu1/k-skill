@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const childProcess = require("node:child_process");
 
 const repoRoot = path.join(__dirname, "..");
 
@@ -194,17 +195,35 @@ test("ktx-booking docs document the helper-based live Korail workflow", () => {
     assert.match(doc, /python3 scripts\/ktx_booking\.py reserve/);
     assert.match(doc, /python3 scripts\/ktx_booking\.py reservations/);
     assert.match(doc, /python3 scripts\/ktx_booking\.py cancel/);
+    assert.match(doc, /train_id/);
+    assert.match(doc, /--train-id/);
     assert.match(doc, /--include-no-seats/);
     assert.match(doc, /--include-waiting-list/);
     assert.match(doc, /--try-waiting/);
     assert.match(doc, /sops exec-env/);
     assert.match(doc, /anti-bot|Dynapath|x-dynapath-m-token/i);
     assert.match(doc, /결제(까지)?는 자동화하지 않는다|결제는 제외/);
+    assert.doesNotMatch(doc, /예약 시 선택할 `--train-index`/);
   }
 
   assert.match(helper, /x-dynapath-m-token/);
   assert.match(helper, /250601002/);
   assert.match(helper, /def build_parser/);
+  assert.match(helper, /train_id/);
+});
+
+test("ktx-booking helper python regression tests pass", () => {
+  const result = childProcess.spawnSync(
+    "python3",
+    ["-m", "unittest", "discover", "-s", "scripts", "-p", "test_ktx_booking.py"],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+
+  assert.equal(
+    result.status,
+    0,
+    `expected python KTX helper regression tests to pass\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+  );
 });
 
 test("repository docs advertise the zipcode-search skill across the documented surfaces", () => {
