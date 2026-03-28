@@ -190,6 +190,7 @@ class FineDustTests(unittest.TestCase):
 
         with (
             redirect_stdout(stdout),
+            mock.patch.dict(fine_dust.os.environ, {"KSKILL_PROXY_BASE_URL": "off"}, clear=False),
             mock.patch.object(fine_dust, "get_required_secret", return_value="test-secret"),
             mock.patch.object(fine_dust, "fetch_json", side_effect=fake_fetch_json),
         ):
@@ -240,6 +241,7 @@ class FineDustTests(unittest.TestCase):
 
         with (
             redirect_stdout(stdout),
+            mock.patch.dict(fine_dust.os.environ, {"KSKILL_PROXY_BASE_URL": "off"}, clear=False),
             mock.patch.object(fine_dust, "get_required_secret", return_value="test-secret"),
             mock.patch.object(fine_dust, "fetch_json", side_effect=fake_fetch_json),
         ):
@@ -251,6 +253,31 @@ class FineDustTests(unittest.TestCase):
         self.assertEqual(rendered["lookup_mode"], "fallback")
         self.assertEqual([url.rsplit("/", 1)[-1] for url, _ in recorded_calls], ["getMsrstnList", "getMsrstnAcctoRltmMesureDnsty"])
         self.assertEqual(recorded_calls[1][1]["stationName"], "중구")
+
+    def test_cli_json_report_prefers_proxy_when_proxy_base_url_is_configured(self):
+        stdout = io.StringIO()
+        proxy_report = {
+            "station_name": "강남구",
+            "station_address": "서울 강남구 학동로 426",
+            "lookup_mode": "fallback",
+            "measured_at": "2026-03-27 21:00",
+            "pm10": {"value": "42", "grade": "보통"},
+            "pm25": {"value": "19", "grade": "보통"},
+            "khai_grade": "보통",
+            "proxy": {"name": "k-skill-proxy"},
+        }
+
+        with (
+            redirect_stdout(stdout),
+            mock.patch.dict(fine_dust.os.environ, {"KSKILL_PROXY_BASE_URL": "https://k-skill-proxy.nomadamas.org"}),
+            mock.patch.object(fine_dust, "fetch_proxy_report", return_value=proxy_report),
+            mock.patch.object(fine_dust, "fetch_station_lookup", side_effect=AssertionError("direct lookup should not run")),
+        ):
+            fine_dust.main(["report", "--region-hint", "서울 강남구", "--json"])
+
+        rendered = json.loads(stdout.getvalue())
+        self.assertEqual(rendered["station_name"], "강남구")
+        self.assertEqual(rendered["proxy"]["name"], "k-skill-proxy")
 
 
 if __name__ == "__main__":

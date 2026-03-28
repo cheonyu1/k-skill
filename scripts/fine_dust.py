@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from math import atan2, cos, radians, sin, sqrt, tan
@@ -13,6 +14,8 @@ from math import atan2, cos, radians, sin, sqrt, tan
 STATION_SERVICE_URL = "http://apis.data.go.kr/B552584/MsrstnInfoInqireSvc"
 MEASUREMENT_SERVICE_URL = "http://apis.data.go.kr/B552584/ArpltnInforInqireSvc"
 SECRET_NAME = "AIR_KOREA_OPEN_API_KEY"
+PROXY_BASE_URL_NAME = "KSKILL_PROXY_BASE_URL"
+DEFAULT_PROXY_BASE_URL = "https://k-skill-proxy.nomadamas.org"
 WGS84_A = 6378137.0
 WGS84_F = 1 / 298.257223563
 BESSEL_A = 6377397.155
@@ -343,16 +346,59 @@ def build_missing_secret_message() -> str:
 
 def get_required_secret() -> str:
     value = os.environ.get(SECRET_NAME)
-    if not value:
+    if not value or value == "replace-me":
         raise SystemExit(build_missing_secret_message())
     return value
+
+
+def get_proxy_base_url() -> str | None:
+    value = os.environ.get(PROXY_BASE_URL_NAME)
+    if value and value.lower() in {"off", "false", "0", "disable", "disabled", "none"}:
+        return None
+    if value and value != "replace-me":
+        return value.rstrip("/")
+    return DEFAULT_PROXY_BASE_URL
+
+
+def read_json_response(request: urllib.request.Request | str) -> dict:
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            payload = None
+
+        message = payload.get("message") if isinstance(payload, dict) else None
+        raise SystemExit(message or f"요청이 실패했습니다: HTTP {exc.code}") from exc
 
 
 def fetch_json(url: str, params: dict[str, object]) -> dict:
     query = urllib.parse.urlencode({key: value for key, value in params.items() if value is not None})
     request_url = f"{url}?{query}"
-    with urllib.request.urlopen(request_url, timeout=20) as response:
-        return json.load(response)
+    return read_json_response(request_url)
+
+
+def fetch_proxy_report(args: argparse.Namespace) -> dict | None:
+    base_url = get_proxy_base_url()
+    if not base_url or args.station_file or args.measurement_file:
+        return None
+
+    params: dict[str, object] = {}
+    if args.lat is not None:
+        params["lat"] = args.lat
+    if args.lon is not None:
+        params["lon"] = args.lon
+    if args.region_hint:
+        params["regionHint"] = args.region_hint
+    if args.station_name:
+        params["stationName"] = args.station_name
+
+    query = urllib.parse.urlencode(params)
+    request = urllib.request.Request(f"{base_url}/v1/fine-dust/report?{query}")
+    return read_json_response(request)
 
 
 def fetch_station_lookup(args: argparse.Namespace) -> tuple[dict, str]:
@@ -436,6 +482,15 @@ def render_text(report: dict) -> str:
 
 
 def command_report(args: argparse.Namespace) -> None:
+    proxy_report = fetch_proxy_report(args)
+    if proxy_report is not None:
+        if args.json:
+            print(json.dumps(proxy_report, ensure_ascii=False, indent=2))
+            return
+
+        print(render_text(proxy_report))
+        return
+
     station_payload, lookup_mode = fetch_station_lookup(args)
     station_items = extract_items(station_payload)
     station = resolve_station(

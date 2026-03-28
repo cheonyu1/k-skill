@@ -41,6 +41,7 @@ KSKILL_KTX_ID=replace-me
 KSKILL_KTX_PASSWORD=replace-me
 SEOUL_OPEN_API_KEY=replace-me
 AIR_KOREA_OPEN_API_KEY=replace-me
+KSKILL_PROXY_BASE_URL=https://k-skill-proxy.nomadamas.org
 ```
 
 실행은 항상 다음 패턴으로 한다.
@@ -95,6 +96,7 @@ sops exec-env "$HOME/.config/k-skill/secrets.env" '<command>'
 - `KSKILL_KTX_PASSWORD`
 - `SEOUL_OPEN_API_KEY`
 - `AIR_KOREA_OPEN_API_KEY`
+- `KSKILL_PROXY_BASE_URL`
 
 ## Why sops plus age
 

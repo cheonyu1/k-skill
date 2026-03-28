@@ -637,8 +637,17 @@ test("fine-dust-location skill documents the official two-api flow and fallback 
 
   assert.match(skill, /^name: fine-dust-location$/m);
   assert.match(skill, /^description: .*미세먼지.*초미세먼지.*위치.*$/m);
+  assert.match(skill, /k-skill-proxy\.nomadamas\.org\/v1\/fine-dust\/report/);
+  assert.match(skill, /행정구역 이름/u);
+  assert.match(skill, /강남구/);
+  assert.match(skill, /python3 scripts\/fine_dust\.py/);
+  assert.match(skill, /docs\/features\/fine-dust-location\.md/);
+  assert.match(skill, /docs\/features\/k-skill-proxy\.md/);
+  assert.match(skill, /PM10/);
+  assert.match(skill, /PM2\.5|PM25/);
+  assert.match(skill, /통합대기등급/);
 
-  for (const doc of [skill, featureDoc]) {
+  for (const doc of [featureDoc]) {
     assert.match(doc, /AIR_KOREA_OPEN_API_KEY/);
     assert.match(doc, /B552584\/MsrstnInfoInqireSvc\/getNearbyMsrstnList/);
     assert.match(doc, /B552584\/MsrstnInfoInqireSvc\/getMsrstnList/);
