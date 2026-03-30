@@ -876,3 +876,16 @@ test("pack:dry-run includes the toss-securities workspace", () => {
 
   assert.match(packageJson.scripts["pack:dry-run"], /workspace toss-securities/);
 });
+
+test("package-lock captures the toss-securities workspace metadata for npm ci", () => {
+  const packageLock = readJson("package-lock.json");
+
+  assert.deepEqual(packageLock.packages[""].workspaces, ["packages/*"]);
+  assert.deepEqual(packageLock.packages["node_modules/toss-securities"], {
+    resolved: "packages/toss-securities",
+    link: true,
+  });
+  assert.equal(packageLock.packages["packages/toss-securities"].version, "0.1.0");
+  assert.equal(packageLock.packages["packages/toss-securities"].license, "MIT");
+  assert.equal(packageLock.packages["packages/toss-securities"].engines.node, ">=18");
+});
