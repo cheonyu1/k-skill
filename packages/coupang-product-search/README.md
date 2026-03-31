@@ -9,8 +9,8 @@
 - official developer docs (seller/Open API docs): `https://developers.coupangcorp.com/hc/ko`
 - 쿠팡 개발자 Open API 문서는 판매자/WING 중심이며, **일반 소비자용 상품 검색·상품평 조회 Open API는 확인되지 않았습니다.**
 - 이 저장소 환경에서 `https://www.coupang.com/np/search?q=생수` 직접 요청은 **403 Access Denied** 였습니다.
-- 같은 날짜에 `https://m.coupang.com/nm/search?q=생수` 직접 요청은 **200 challenge HTML (`Powered and protected by Privacy`)** 이었습니다.
-- 같은 날짜에 `m.coupang.com` 대상 **headless Playwright probe** 도 `Access Denied` HTML로 차단되었습니다.
+- 같은 날짜에 `https://m.coupang.com/nm/search?q=생수` 직접 요청도 **차단된 HTML** 이었고, 재실행마다 `200 challenge-html` 또는 `403 access-denied-html` 처럼 **정확한 status/reason 이 달라질 수 있었습니다.**
+- 같은 날짜에 `m.coupang.com` 대상 **headless Playwright-core probe** 도 차단되었고, **blocked shape 역시 edge/challenge 상태에 따라 달라질 수 있었습니다.**
 
 그래서 이 패키지는 **우회 로직** 대신 아래 두 가지를 제공합니다.
 
@@ -71,6 +71,8 @@ async function fetchHtmlFromBrowser(url) {
 async function main() {
   const probe = await probeAutomation("생수")
   console.log(probe)
+  // clean checkout 에서는 browser === null 입니다.
+  // browser 결과를 보려면 browserFetchHtml(url) 주입이 필요합니다.
 
   const search = await searchProducts("생수", { fetchHtml: fetchHtmlFromBrowser })
   console.log(search.items[0])
@@ -92,27 +94,26 @@ main().catch((error) => {
 })
 ```
 
-## Live probe snapshot
+## Live probe notes
 
-2026-03-31 기준 `query=생수` probe 결과 요약:
+2026-03-31 기준 `query=생수` 로 확인한 blocked outcome 메모:
 
 ```json
 {
   "directDesktop": {
     "blocked": true,
-    "status": 403,
-    "reason": "access-denied-html"
+    "observed": ["403/access-denied-html"]
   },
   "directMobile": {
     "blocked": true,
-    "status": 200,
-    "reason": "challenge-html"
+    "observed": ["200/challenge-html", "403/access-denied-html"]
   },
   "browser": {
     "blocked": true,
-    "reason": "access-denied-html"
+    "observed": ["access-denied-html"],
+    "notes": "manual browserFetchHtml / Playwright-core runner 를 주입한 별도 검증 기준"
   }
 }
 ```
 
-즉, **공식 URL 구조와 HTML 파서는 유지하되, live HTML 확보는 호출 환경의 실제 브라우저 세션/권한에 따라 달라집니다.**
+즉, **막힌다는 사실은 재현되더라도 exact status/reason 은 rerun, edge, challenge 상태에 따라 달라질 수 있습니다.** 공식 URL 구조와 HTML 파서는 유지하되, live HTML 확보는 호출 환경의 실제 브라우저 세션/권한에 따라 달라집니다.

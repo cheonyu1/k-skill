@@ -26,7 +26,9 @@ metadata:
 
 - 쿠팡 개발자 Open API는 **판매자/WING 중심** 문서만 확인되었다.
 - 일반 소비자용 상품 검색·리뷰 조회 Open API는 확인하지 못했다.
-- 이 저장소 환경에서 desktop direct HTTP 는 `403 Access Denied`, mobile direct HTTP 는 `200 challenge HTML`, headless Playwright 는 `Access Denied` 로 차단되었다.
+- 이 저장소 환경에서 desktop direct HTTP 는 `403 Access Denied` 로 차단되었다.
+- mobile direct HTTP 도 차단되었지만, rerun 마다 `200 challenge-html` 또는 `403 access-denied-html` 처럼 **차단 응답이 달라질 수 있었다.**
+- headless Playwright-core probe 역시 차단되었고, **blocked shape 도 edge/challenge 상태에 따라 달라질 수 있었다.**
 
 따라서 이 스킬은 **anti-bot 우회**를 시도하지 않는다. 대신:
 
@@ -76,6 +78,7 @@ console.log(probe)
 ```
 
 - `blocked: true` 면 direct fetch / headless browser 가 막힌 것이다.
+- `browser` 값은 `browserFetchHtml` 을 주입했을 때만 채워진다.
 - 이 경우 **브라우저 세션에서 캡처한 HTML** 또는 사용자가 제공한 쿠팡 상품 URL/HTML 이 필요하다고 설명한다.
 
 ### 3. Search products when browser HTML is available

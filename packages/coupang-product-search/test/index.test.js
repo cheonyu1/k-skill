@@ -23,6 +23,7 @@ const {
 } = require("../src/parse")
 
 const fixturesDir = path.join(__dirname, "fixtures")
+const repoRoot = path.resolve(__dirname, "..", "..", "..")
 const searchHtml = fs.readFileSync(path.join(fixturesDir, "search.html"), "utf8")
 const detailHtml = fs.readFileSync(path.join(fixturesDir, "detail.html"), "utf8")
 const reviewsHtml = fs.readFileSync(path.join(fixturesDir, "reviews.html"), "utf8")
@@ -204,4 +205,37 @@ test("detectBlockedAccess and probeAutomation classify direct fetch/headless fai
   assert.equal(report.directMobile.reason, "challenge-html")
   assert.equal(report.browser.blocked, true)
   assert.equal(report.browser.reason, "access-denied-html")
+})
+
+test("probeAutomation keeps 403 access-denied mobile responses blocked", async () => {
+  const report = await probeAutomation("생수", {
+    fetchImpl: async () => new Response(blockedHtml, { status: 403 })
+  })
+
+  assert.equal(report.directDesktop.blocked, true)
+  assert.equal(report.directDesktop.reason, "access-denied-html")
+  assert.equal(report.directDesktop.status, 403)
+  assert.equal(report.directMobile.blocked, true)
+  assert.equal(report.directMobile.reason, "access-denied-html")
+  assert.equal(report.directMobile.status, 403)
+  assert.equal(report.browser, null)
+})
+
+test("repo docs describe Coupang anti-bot outcomes as variable blocked results", () => {
+  const files = [
+    path.join(repoRoot, "packages/coupang-product-search/README.md"),
+    path.join(repoRoot, "docs/features/coupang-product-search.md"),
+    path.join(repoRoot, "coupang-product-search/SKILL.md")
+  ]
+
+  for (const file of files) {
+    const contents = fs.readFileSync(file, "utf8")
+
+    assert.match(
+      contents,
+      /status\/reason.*vary|status\/reason.*달라질 수|차단 응답.*달라질 수|blocked shape.*vary/i,
+      file
+    )
+    assert.doesNotMatch(contents, /mobile direct HTTP.*200 challenge HTML|m\.coupang\.com.*200 challenge HTML/i, file)
+  }
 })
