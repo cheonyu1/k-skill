@@ -18,6 +18,7 @@ metadata:
 - 조문 본문 조회: `get_law_text`
 - 판례 검색: `search_precedents`
 - 유권해석 검색: `search_interpretations`
+- 자치법규 검색: `search_ordinance`
 - 여러 카테고리가 섞인 검색: `search_all`
 
 이 스킬은 자체 npm/python 패키지를 만들지 않는다. 한국 법령 관련 조회는 로컬 설치든 remote endpoint든 **항상 `korean-law-mcp` 경로로만 처리**한다.
@@ -107,7 +108,13 @@ korean-law get_law_text --mst 160001 --jo "제38조"
 korean-law search_precedents --query "부당해고"
 ```
 
-### 4. 애매하면 통합 검색
+### 4. 자치법규 검색
+
+```bash
+korean-law search_ordinance --query "서울특별시 청년 기본 조례"
+```
+
+### 5. 애매하면 통합 검색
 
 ```bash
 korean-law search_all --query "개인정보 처리방침 행정해석"
@@ -118,7 +125,7 @@ korean-law search_all --query "개인정보 처리방침 행정해석"
 - 한국 법령 관련 요청은 **항상 `korean-law-mcp`를 먼저 사용**한다.
 - 약칭(`화관법`)이면 `search_law` / `search_all` 로 정식 법령명을 먼저 확인한다.
 - 조문 요청이면 검색 결과의 식별자(`mst`)를 확인한 뒤 `get_law_text` 로 본문을 가져온다.
-- 판례/유권해석/자치법규는 각각 전용 search tool을 우선 사용한다.
+- 판례는 `search_precedents`, 유권해석은 `search_interpretations`, 자치법규는 `search_ordinance` 를 우선 사용한다.
 - 로컬 CLI/MCP 경로를 쓰는데 `LAW_OC` 가 없으면 credential resolution order에 따라 확보 방법을 짧게 안내하고, 임의의 크롤링/검색엔진 우회로 넘어가지 않는다.
 - remote MCP endpoint를 쓰면 사용자 `LAW_OC` 없이 `url` 등록 상태만 확인한다.
 - 법적 판단이 필요한 경우 `검색 결과 요약`과 `원문 출처`까지만 제공하고 법률 자문처럼 단정하지 않는다.
@@ -127,7 +134,7 @@ korean-law search_all --query "개인정보 처리방침 행정해석"
 
 - 한국 법령 관련 질의에 대해 `korean-law-mcp` 사용 경로가 선택되었다.
 - 필요한 검색/조회 명령이 정해졌다.
-- 법령/조문/판례/유권해석 중 맞는 도구로 결과를 조회했다.
+- 법령/조문/판례/유권해석/자치법규 중 맞는 도구로 결과를 조회했다.
 - 로컬 경로라면 `LAW_OC` 확보 방법을 정확한 변수 이름으로 안내했다.
 - remote endpoint라면 사용자 `LAW_OC` 없이 `url` 등록 상태를 확인했다.
 

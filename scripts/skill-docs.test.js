@@ -1054,6 +1054,8 @@ test("korean-law-search skill keeps korean-law-mcp-only lookups while separating
     assert.match(doc, /search_law/);
     assert.match(doc, /get_law_text/);
     assert.match(doc, /search_precedents/);
+    assert.match(doc, /search_interpretations/);
+    assert.match(doc, /search_ordinance/);
     assert.match(doc, /https:\/\/korean-law-mcp\.fly\.dev\/mcp/);
     assert.match(doc, /MCP/i);
     assert.match(doc, /CLI/i);
