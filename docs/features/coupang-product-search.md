@@ -1,108 +1,103 @@
-# 쿠팡 상품 가격/리뷰 조회 가이드
+# 쿠팡 상품 검색 가이드
 
 ## 이 기능으로 할 수 있는 일
 
-- 쿠팡 공식 검색 URL 만들기
-- 브라우저에서 캡처한 쿠팡 검색 결과 HTML 파싱
-- 상품 상세/가격/판매자/배송 배지/필수 표기 정보 파싱
-- 상품 리뷰 요약과 개별 리뷰 파싱
-- direct fetch / headless browser 가 차단되는지 probe
+[coupang-mcp](https://github.com/uju777/coupang-mcp) 서버를 통해 쿠팡 상품을 검색하고 실시간 가격을 확인한다.
 
-## 먼저 알아둘 점
+- 키워드 상품 검색 (로켓배송/일반배송 구분)
+- 로켓배송 전용 필터 검색
+- 가격대 범위 검색
+- 상품 비교표 생성
+- 카테고리별 베스트 상품, 골드박스 당일 특가
+- 인기 검색어/계절 상품 추천
 
-2026-03-31 기준 확인 내용:
+## 동작 방식
 
-- 쿠팡 개발자 Open API 문서는 **판매자/WING 중심**이다.
-- 일반 소비자용 상품 검색·상품평 조회 Open API는 확인하지 못했다.
-- 이 저장소 환경에서 `www.coupang.com` direct fetch 는 `403 Access Denied` 였다.
-- `m.coupang.com` direct fetch 도 차단되었지만, rerun 마다 `200 challenge-html` 또는 `403 access-denied-html` 처럼 **차단 응답 status/reason 이 달라질 수 있었다.**
-- headless Playwright-core probe 도 막혔고, 여기서도 **exact blocked shape 는 edge/challenge 상태에 따라 달라질 수 있었다.**
+```
+Claude Code → MCP JSON-RPC → HF Space (coupang-mcp) → Netlify 프록시 (도쿄) → 다나와/쿠팡
+```
 
-즉, 이 기능은 **anti-bot 우회**가 아니라 다음 흐름을 기준으로 동작한다.
+- **API 키 불필요** — coupang-mcp가 다나와 가격 조회를 1차로, 쿠팡 API를 폴백으로 사용
+- 해외 IP 차단 우회를 위해 도쿄 리전 Netlify 프록시 경유
 
-1. 공식 쿠팡 URL을 만든다.
-2. 가능하면 브라우저 세션에서 확보한 HTML 을 파싱한다.
-3. 막히면 probe 결과를 그대로 보여주고, 브라우저 HTML 또는 상품 URL을 추가 입력으로 받는다.
+## MCP 엔드포인트
 
-## 공식 표면
+```
+https://yuju777-coupang-mcp.hf.space/mcp
+```
 
-- seller Open API docs: `https://developers.coupangcorp.com/hc/ko/sections/360004260614-상품-API`
-- desktop search: `https://www.coupang.com/np/search?q=<query>`
-- mobile search: `https://m.coupang.com/nm/search?q=<query>`
-- product detail: `https://www.coupang.com/vp/products/<productId>?itemId=<itemId>&vendorItemId=<vendorItemId>`
-- review anchor: `#sdpReview`
+프로토콜: MCP Streamable HTTP (JSON-RPC 2.0)
+
+## 사용 가능한 도구
+
+| 도구명 | 기능 | 사용 예시 |
+|--------|------|----------|
+| `search_coupang_products` | 일반 상품 검색 | "맥북 검색해줘" |
+| `search_coupang_rocket` | 로켓배송만 필터링 | "로켓배송 에어팟 찾아줘" |
+| `search_coupang_budget` | 가격대 범위 검색 | "10만원 이하 키보드" |
+| `compare_coupang_products` | 상품 비교표 생성 | "아이패드 vs 갤럭시탭" |
+| `get_coupang_recommendations` | 인기 검색어 제안 | "요즘 뭐가 인기야?" |
+| `get_coupang_seasonal` | 계절/상황별 추천 | "설날 선물 추천" |
+| `get_coupang_best_products` | 카테고리별 베스트 | "전자제품 베스트" |
+| `get_coupang_goldbox` | 당일 특가 정보 | "오늘 특가 뭐있어?" |
 
 ## 기본 흐름
 
-1. 검색어 또는 상품 URL을 받는다.
-2. `probeAutomation()` 으로 이 환경에서 direct/headless 접근이 가능한지 본다.
-3. 브라우저 HTML 이 있으면 `searchProducts()` 로 후보를 정리한다.
-4. 같은 방식으로 `getProductDetail()` 과 `getProductReviews()` 를 호출한다.
-5. 차단되면 `현재 환경에서는 쿠팡 anti-bot 에 막혀 브라우저 HTML 이 필요하다`고 답한다.
+1. 검색어를 받는다. 너무 넓으면 용도/예산/브랜드를 먼저 물어본다.
+2. MCP 세션을 초기화한다 (`initialize` → `Mcp-Session-Id` 확보).
+3. `tools/call`로 적절한 도구를 호출한다.
+4. 결과를 로켓배송/일반배송으로 구분하여 정리한다.
+5. 상위 3~5개 추천과 함께 가격/배송 정보를 제공한다.
 
-## Node.js 예시
+## 호출 예시
 
-```js
-const {
-  getProductDetail,
-  getProductReviews,
-  probeAutomation,
-  searchProducts
-} = require("coupang-product-search")
+```bash
+# 1. 세션 초기화
+curl -s -X POST "https://yuju777-coupang-mcp.hf.space/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+    "protocolVersion":"2025-03-26",
+    "capabilities":{},
+    "clientInfo":{"name":"k-skill","version":"1.0"}
+  }}'
+# → 응답 헤더에서 Mcp-Session-Id 확보
 
-async function browserCapture(url) {
-  // 호출 환경에서 구현
-  throw new Error(`Implement browser capture for ${url}`)
-}
-
-async function main() {
-  const probe = await probeAutomation("생수")
-  console.log(probe)
-  // browser 결과는 browserFetchHtml 을 주입하지 않으면 null 이다.
-
-  const search = await searchProducts("생수", { fetchHtml: browserCapture })
-  console.log(search.items.slice(0, 3))
-
-  const detail = await getProductDetail(search.items[0].productUrl, { fetchHtml: browserCapture })
-  console.log(detail)
-
-  const reviews = await getProductReviews(detail.productUrl, { fetchHtml: browserCapture })
-  console.log(reviews.summary)
-}
-
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+# 2. 상품 검색
+curl -s -X POST "https://yuju777-coupang-mcp.hf.space/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: <session-id>" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{
+    "name":"search_coupang_products",
+    "arguments":{"keyword":"생수"}
+  }}'
 ```
 
-## Live probe 메모
+## 결과 형식
 
-아래 값은 **2026-03-31** 기준 `query=생수` 로 확인한 blocked outcome 범위다.
+```
+## rocket (6)
 
-```json
-{
-  "directDesktop": {
-    "blocked": true,
-    "observed": ["403/access-denied-html"]
-  },
-  "directMobile": {
-    "blocked": true,
-    "observed": ["200/challenge-html", "403/access-denied-html"]
-  },
-  "browser": {
-    "blocked": true,
-    "observed": ["access-denied-html"],
-    "notes": "browserFetchHtml 을 주입한 수동/외부 Playwright-core 검증 기준"
-  }
-}
+1) LG전자 4K UHD 모니터
+   옵션: 80cm / 32UR500K
+   가격: 397,750원 (39만원대)
+   보러가기: https://link.coupang.com/a/...
+
+## normal (4)
+
+1) 삼성전자 QHD 오디세이 G5 게이밍 모니터
+   가격: 283,000원 (28만원대)
+   보러가기: https://link.coupang.com/a/...
 ```
 
-즉, **차단 자체는 확인되지만 exact status/reason 은 달라질 수 있고, clean checkout 의 `probeAutomation(\"생수\")` 는 browser 값을 자동으로 채우지 않는다.** 공식 URL 구조 자체는 안정적으로 만들 수 있었지만, live HTML 수집은 환경 의존적이다.
+## 제한사항
 
-## 운영 팁
+- 가격은 참고용이다. 다나와 조회 실패 시 쿠팡 API 추정가가 표시된다.
+- 로그인, 장바구니, 결제 자동화는 지원하지 않는다.
+- MCP 서버(HF Space)가 다운되면 일시적으로 사용 불가하다.
 
-- 검색어가 넓으면 용도/예산/브랜드/용량을 먼저 물어본다.
-- 리뷰는 평균 평점, 총 리뷰 수, 대표 리뷰 2~3개만 먼저 요약한다.
-- 상품 URL이 이미 있으면 검색 단계를 건너뛰고 상세/리뷰 파싱으로 바로 들어간다.
-- headless probe 가 막히면 우회 시도를 늘리지 말고 브라우저 캡처 HTML 필요 사실을 분명히 말한다.
+## 출처
+
+- [coupang-mcp GitHub](https://github.com/uju777/coupang-mcp)
+- MCP 엔드포인트: `https://yuju777-coupang-mcp.hf.space/mcp`

@@ -1,61 +1,60 @@
 ---
 name: coupang-product-search
-description: 공식 쿠팡 쇼핑 URL과 브라우저 캡처 HTML을 이용해 상품 후보, 가격, 상세, 리뷰를 정리한다. 먼저 Open API 제한과 anti-bot 차단 여부를 확인하고, 가능하면 검색→상세→리뷰 순으로 답한다.
+description: coupang-mcp 서버를 통해 쿠팡 상품 검색, 로켓배송 필터, 가격대 검색, 상품 비교, 베스트 상품, 골드박스 특가를 조회한다.
 license: MIT
 metadata:
   category: retail
   locale: ko-KR
-  phase: v1
+  phase: v2
 ---
 
 # Coupang Product Search
 
 ## What this skill does
 
-쿠팡에서 사용자의 니즈에 맞는 상품을 찾기 위해 다음을 지원한다.
+[coupang-mcp](https://github.com/uju777/coupang-mcp) 서버를 경유하여 쿠팡 상품을 검색하고 실시간 가격을 확인한다.
 
-- 공식 쿠팡 검색 URL 생성
-- 브라우저 세션에서 캡처한 검색 결과 HTML 파싱
-- 상품 상세/가격/판매자/배지/필수 표기 정보 파싱
-- 상품 리뷰 요약/개별 리뷰 파싱
-- direct fetch / headless browser 차단 여부 probe
+- 키워드 상품 검색 (로켓배송/일반배송 구분)
+- 로켓배송 전용 필터 검색
+- 가격대 범위 검색
+- 상품 비교표 생성
+- 카테고리별 베스트 상품
+- 골드박스 당일 특가
+- 인기 검색어/계절 상품 추천
 
-## Important limitation first
+## How it works
 
-2026-03-31 기준으로 확인한 사실:
+```
+Claude Code
+  → MCP Streamable HTTP (JSON-RPC)
+    → HF Space (coupang-mcp 서버)
+      → Netlify 프록시 (도쿄)
+        → 다나와 가격 조회 (1차) / 쿠팡 API 폴백
+```
 
-- 쿠팡 개발자 Open API는 **판매자/WING 중심** 문서만 확인되었다.
-- 일반 소비자용 상품 검색·리뷰 조회 Open API는 확인하지 못했다.
-- 이 저장소 환경에서 desktop direct HTTP 는 `403 Access Denied` 로 차단되었다.
-- mobile direct HTTP 도 차단되었지만, rerun 마다 `200 challenge-html` 또는 `403 access-denied-html` 처럼 **차단 응답이 달라질 수 있었다.**
-- headless Playwright-core probe 역시 차단되었고, **blocked shape 도 edge/challenge 상태에 따라 달라질 수 있었다.**
+- API 키 불필요
+- 다나와에서 정확한 판매가 우선 조회, 실패 시 쿠팡 API 가격 자동 폴백
+- 해외 IP 차단 우회를 위해 도쿄 리전 프록시 경유
 
-따라서 이 스킬은 **anti-bot 우회**를 시도하지 않는다. 대신:
+## MCP endpoint
 
-1. 공식 URL을 만든다.
-2. 브라우저 세션에서 확보한 HTML 이 있으면 파싱한다.
-3. HTML 확보가 막히면 probe 결과와 함께 제한을 설명한다.
+```
+https://yuju777-coupang-mcp.hf.space/mcp
+```
 
 ## When to use
 
 - "쿠팡에서 생수 가격 좀 찾아줘"
-- "이 쿠팡 상품 상세/리뷰 요약해줘"
-- "쿠팡 headless 자동화가 가능한지 먼저 테스트해줘"
-- "쿠팡 검색 URL부터 만들고 상품 후보 정리해줘"
+- "로켓배송 에어팟 찾아줘"
+- "20만원 이하 키보드 추천해줘"
+- "아이패드 vs 갤럭시탭 비교"
+- "오늘 쿠팡 특가 뭐 있어?"
+- "전자제품 베스트 보여줘"
 
 ## When not to use
 
 - 로그인, 장바구니, 결제 자동화가 필요한 경우
-- anti-bot 우회나 계정/session 탈취가 필요한 경우
-- 공식 URL이나 브라우저 HTML 없이 결과를 단정해야 하는 경우
-
-## Official surfaces checked
-
-- seller Open API docs: `https://developers.coupangcorp.com/hc/ko/sections/360004260614-상품-API`
-- desktop search URL: `https://www.coupang.com/np/search?q=<query>`
-- mobile search URL: `https://m.coupang.com/nm/search?q=<query>`
-- product URL pattern: `https://www.coupang.com/vp/products/<productId>?itemId=<itemId>&vendorItemId=<vendorItemId>`
-- review section anchor: `#sdpReview`
+- 쿠팡 계정/session 접근이 필요한 경우
 
 ## Workflow
 
@@ -63,88 +62,75 @@ metadata:
 
 검색어가 너무 넓으면 먼저 의도를 좁힌다.
 
-- 권장 질문: `어떤 용도/예산/브랜드/용량을 우선할까요? 예: 생수 2L / 무라벨 / 로켓배송` 
-- URL이 이미 있으면 바로 상세/리뷰 단계로 간다.
+- 권장 질문: `어떤 용도/예산/브랜드/용량을 우선할까요?`
 
-### 2. Probe the environment
+### 2. Initialize MCP session
 
-가능 여부를 먼저 확인한다.
+coupang-mcp는 MCP Streamable HTTP 프로토콜을 사용한다. 세션을 초기화한 뒤 도구를 호출한다.
 
-```js
-const { probeAutomation } = require("coupang-product-search")
-
-const probe = await probeAutomation("생수")
-console.log(probe)
+```bash
+# Step 1: Initialize and get session ID
+SESSION_ID=$(curl -s -X POST "https://yuju777-coupang-mcp.hf.space/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"k-skill","version":"1.0"}}}' \
+  -D /dev/stderr 2>&1 1>/dev/null | grep -i 'mcp-session-id' | awk '{print $2}' | tr -d '\r')
 ```
 
-- `blocked: true` 면 direct fetch / headless browser 가 막힌 것이다.
-- `browserFetchHtml` 을 주입하지 않은 clean checkout 에서는 `browser === null` 이고, `browser` 값은 수동/외부 Playwright-core runner 같은 `browserFetchHtml` 주입 경로를 붙였을 때만 채워진다.
-- 이 경우 **브라우저 세션에서 캡처한 HTML** 또는 사용자가 제공한 쿠팡 상품 URL/HTML 이 필요하다고 설명한다.
+### 3. Call tools
 
-### 3. Search products when browser HTML is available
+세션 ID를 얻은 뒤 `tools/call` 로 원하는 도구를 호출한다.
 
-```js
-const { searchProducts } = require("coupang-product-search")
-
-const search = await searchProducts("생수", {
-  fetchHtml: browserCapture
-})
-
-console.log(search.items)
+```bash
+curl -s -X POST "https://yuju777-coupang-mcp.hf.space/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: $SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_coupang_products","arguments":{"keyword":"32인치 4K 모니터"}}}' \
+  2>&1 | grep "^data:" | sed 's/^data: //'
 ```
 
-정리 우선순위:
+## Available tools
 
-- 제목 정확도
-- 가격
-- 로켓배송/무료배송/와우가 등 배지
-- 평점/리뷰 수
-- 판매자명
+| 도구명 | 기능 | 파라미터 예시 |
+|--------|------|-------------|
+| `search_coupang_products` | 일반 상품 검색 | `{"keyword":"생수"}` |
+| `search_coupang_rocket` | 로켓배송만 필터링 | `{"keyword":"에어팟"}` |
+| `search_coupang_budget` | 가격대 범위 검색 | `{"keyword":"키보드","min_price":0,"max_price":100000}` |
+| `compare_coupang_products` | 상품 비교표 생성 | `{"keyword":"아이패드 vs 갤럭시탭"}` |
+| `get_coupang_recommendations` | 인기 검색어 제안 | `{}` |
+| `get_coupang_seasonal` | 계절/상황별 추천 | `{"keyword":"설날 선물"}` |
+| `get_coupang_best_products` | 카테고리별 베스트 | `{"keyword":"전자제품"}` |
+| `get_coupang_goldbox` | 당일 특가 정보 | `{}` |
 
-### 4. Read product detail
+## Response format
 
-```js
-const { getProductDetail } = require("coupang-product-search")
+결과는 로켓배송(rocket)과 일반배송(normal)으로 구분되어 반환된다.
 
-const detail = await getProductDetail(search.items[0].productUrl, {
-  fetchHtml: browserCapture
-})
-
-console.log(detail)
 ```
+## rocket (6)
 
-반환값에는 보통 아래 정보가 포함된다.
+1) LG전자 4K UHD 모니터
+   옵션: 80cm / 32UR500K
+   가격: 397,750원 (39만원대)
+   보러가기: https://link.coupang.com/a/...
 
-- 상품명
-- 가격 / 할인 전 가격 / 단위당 가격
-- 판매자명
-- 배송 배지 / 도착 문구
-- 필수 표기 정보
-- 리뷰 요약
+## normal (4)
 
-### 5. Read reviews
-
-```js
-const { getProductReviews } = require("coupang-product-search")
-
-const reviews = await getProductReviews(detail.productUrl, {
-  fetchHtml: browserCapture
-})
-
-console.log(reviews.summary)
-console.log(reviews.items.slice(0, 3))
+1) 삼성전자 QHD 오디세이 G5 게이밍 모니터
+   가격: 283,000원 (28만원대)
+   보러가기: https://link.coupang.com/a/...
 ```
 
 ## Response policy
 
-- probe 가 막혔으면 **막혔다고 먼저 말한다.**
-- 브라우저 HTML 없이 live 결과를 단정하지 않는다.
-- 후보가 여러 개면 상위 3개만 짧게 비교한다.
-- 리뷰는 전체 평균/개수 + 대표 리뷰 2~3개 정도만 요약한다.
+- 후보가 여러 개면 상위 3~5개만 짧게 비교한다.
+- 로켓배송/일반배송 구분을 명시한다.
+- 가격은 참고용임을 안내한다 (다나와 실패 시 쿠팡 API 추정가).
+- MCP 서버가 응답하지 않으면 서버 상태를 알리고 나중에 재시도를 권한다.
 
 ## Done when
 
-- 검색어 또는 상품 URL이 확보되었다.
-- probe 결과를 확인했다.
-- 가능하면 검색 → 상세 → 리뷰를 순서대로 정리했다.
-- 차단되면 차단 사실과 필요한 다음 입력(브라우저 HTML / 상품 URL)을 분명히 설명했다.
+- 검색 결과가 로켓배송/일반배송으로 구분되어 정리되었다.
+- 사용자 니즈에 맞는 추천 TOP 3이 제시되었다.
+- 가격/배송 정보가 포함되었다.
