@@ -1,13 +1,21 @@
 import contextlib
 import io
+import ssl
 import unittest
+from unittest import mock
 
 from scripts.sillok_search import (
+    ArticleDetail,
+    SearchReport,
+    SearchResult,
+    build_opener,
     filter_results,
+    fetch_text,
     parse_args,
     parse_detail_page,
     parse_result_title_metadata,
     parse_search_results,
+    search_sillok,
 )
 
 SAMPLE_SEARCH_HTML = """<!DOCTYPE html>
@@ -55,7 +63,7 @@ SAMPLE_DETAIL_HTML = """<!DOCTYPE html>
         <div class=\"view-text\">이달에 임금이 친히 언문(諺文) 28자를 지었다.</div>
         <ul>
           <li class=\"view_font01\">【태백산사고본】 33책 102권 42장 A면 【국편영인본】 4책 533면</li>
-          <li class=\"view_font02\">【분류】 어문학-어학(語學)</li>
+          <li class=\"view_font02\">〖분류〗 어문학-어학(語學)</li>
         </ul>
       </div>
       <div class=\"view-item right\">
@@ -123,6 +131,107 @@ class ParseDetailPageTest(unittest.TestCase):
         self.assertEqual(detail.translated_text, "이달에 임금이 친히 언문(諺文) 28자를 지었다.")
         self.assertEqual(detail.original_text, "○是月, 上親制諺文二十八字。")
         self.assertEqual(detail.classification, "어문학-어학(語學)")
+
+
+class NetworkingRegressionTest(unittest.TestCase):
+    def test_build_opener_keeps_default_tls_verification(self):
+        fake_context = mock.Mock()
+        fake_context.check_hostname = True
+        fake_context.verify_mode = ssl.CERT_REQUIRED
+
+        with (
+            mock.patch("scripts.sillok_search.ssl.create_default_context", return_value=fake_context),
+            mock.patch("scripts.sillok_search.urllib.request.HTTPCookieProcessor", return_value="cookie-processor"),
+            mock.patch(
+                "scripts.sillok_search.urllib.request.HTTPSHandler",
+                side_effect=lambda *, context: ("https-handler", context),
+            ),
+            mock.patch("scripts.sillok_search.urllib.request.build_opener", return_value="opener") as build_opener_mock,
+        ):
+            opener = build_opener()
+
+        self.assertEqual(opener, "opener")
+        self.assertTrue(fake_context.check_hostname)
+        self.assertEqual(fake_context.verify_mode, ssl.CERT_REQUIRED)
+        build_opener_mock.assert_called_once_with("cookie-processor", ("https-handler", fake_context))
+
+    def test_fetch_text_keeps_requests_tls_verification_enabled(self):
+        response = mock.Mock()
+        response.text = "<html></html>"
+        response.raise_for_status.return_value = None
+        fake_requests = mock.Mock()
+        fake_requests.post.return_value = response
+
+        with mock.patch("scripts.sillok_search.requests", fake_requests):
+            html_text = fetch_text(
+                None,
+                "https://sillok.history.go.kr/search/searchResultList.do",
+                data={"topSearchWord": "훈민정음"},
+            )
+
+        self.assertEqual(html_text, "<html></html>")
+        self.assertNotIn("verify", fake_requests.post.call_args.kwargs)
+
+
+class SearchSillokRegressionTest(unittest.TestCase):
+    def test_search_continues_to_later_pages_for_filtered_matches(self):
+        non_matching_items = [
+            SearchResult(
+                article_id=f"page1_{index}",
+                url=f"https://sillok.history.go.kr/id/page1_{index}",
+                title=f"정조실록 {index} / 다른 기사",
+                article_title="다른 기사",
+                summary="page 1",
+                king="정조",
+                regnal_year=7,
+                gregorian_year=1783,
+            )
+            for index in range(10)
+        ]
+        matching_item = SearchResult(
+            article_id="kda_12512030_002",
+            url="https://sillok.history.go.kr/id/kda_12512030_002",
+            title="세종실록 102권, 세종 25년 12월 30일 / 훈민정음을 창제하다",
+            article_title="훈민정음을 창제하다",
+            summary="세종 page 2",
+            king="세종",
+            regnal_year=25,
+            gregorian_year=1443,
+        )
+        reports_by_page = {
+            1: SearchReport(query="훈민정음", search_type="k", total_results=21, type_count=11, categories=[], items=non_matching_items),
+            2: SearchReport(query="훈민정음", search_type="k", total_results=21, type_count=11, categories=[], items=[matching_item]),
+        }
+        detail = ArticleDetail(
+            article_id="kda_12512030_002",
+            url="https://sillok.history.go.kr/id/kda_12512030_002",
+            header="세종실록102권, 세종 25년 12월 30일 경술 2/2 기사 / 1443년 명 정통(正統) 8년",
+            title="훈민정음을 창제하다",
+            translated_text="이달에 임금이 친히 언문(諺文) 28자를 지었다.",
+            original_text="○是月, 上親制諺文二十八字。",
+            classification="어문학-어학(語學)",
+        )
+        page_calls: list[int] = []
+
+        def fake_fetch_search_page(_opener, *, query, search_type, page_index, timeout):
+            self.assertEqual(query, "훈민정음")
+            self.assertEqual(search_type, "k")
+            self.assertEqual(timeout, 7)
+            page_calls.append(page_index)
+            return reports_by_page[page_index]
+
+        with (
+            mock.patch("scripts.sillok_search.build_http_client", return_value=object()),
+            mock.patch("scripts.sillok_search.fetch_search_page", side_effect=fake_fetch_search_page),
+            mock.patch("scripts.sillok_search.fetch_detail_page", return_value=detail) as fetch_detail_page_mock,
+        ):
+            report = search_sillok("훈민정음", king="세종", year=1443, limit=1, timeout=7)
+
+        self.assertEqual(page_calls, [1, 2])
+        self.assertEqual(report["returned_count"], 1)
+        self.assertEqual(report["items"][0]["article_id"], "kda_12512030_002")
+        self.assertEqual(report["items"][0]["detail"]["classification"], "어문학-어학(語學)")
+        fetch_detail_page_mock.assert_called_once()
 
 
 class ParseArgsTest(unittest.TestCase):

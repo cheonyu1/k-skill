@@ -1142,3 +1142,15 @@ test("repository docs advertise the joseon-sillok-search skill and helper", () =
   assert.match(sources, /https:\/\/sillok\.history\.go\.kr\/search\/searchResultList\.do/);
   assert.match(roadmap, /조선왕조실록 검색 스킬 출시/);
 });
+
+test("repository docs do not advertise missing korean-spell-check assets", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "korean-spell-check.md");
+  const helperPath = path.join(repoRoot, "scripts", "korean_spell_check.py");
+
+  assert.equal(fs.existsSync(featureDocPath), false);
+  assert.equal(fs.existsSync(helperPath), false);
+  assert.doesNotMatch(readme, /\[한국어 맞춤법 검사 가이드\]\(docs\/features\/korean-spell-check\.md\)/);
+  assert.doesNotMatch(install, /python3 scripts\/korean_spell_check\.py/);
+});

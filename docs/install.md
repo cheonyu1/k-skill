@@ -143,12 +143,6 @@ brew install tossctl
 python3 -m pip install SRTrain korail2 pycryptodome
 ```
 
-한국어 맞춤법 검사 helper는 별도 외부 패키지 없이 표준 라이브러리 `python3` 만 있으면 된다.
-
-```bash
-python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다."
-```
-
 조선왕조실록 검색 helper도 별도 외부 패키지 없이 표준 라이브러리 `python3` 만 있으면 된다.
 
 ```bash

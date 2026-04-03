@@ -16,10 +16,8 @@ from typing import Any, Iterable
 
 try:
     import requests
-    from urllib3.exceptions import InsecureRequestWarning
 except ImportError:  # pragma: no cover - optional runtime dependency
     requests = None
-    InsecureRequestWarning = None
 
 
 BASE_URL = "https://sillok.history.go.kr"
@@ -27,7 +25,6 @@ SEARCH_URL = f"{BASE_URL}/search/searchResultList.do"
 DETAIL_URL_TEMPLATE = f"{BASE_URL}/id/{{article_id}}"
 DEFAULT_TIMEOUT = 30
 DEFAULT_LIMIT = 5
-DEFAULT_PAGE_SIZE = 50
 MAX_PAGES = 20
 
 DEFAULT_HEADERS = {
@@ -70,7 +67,7 @@ RIGHT_VIEW_PATTERN = re.compile(
     r"<div\s+class=\"view-item\s+right\">.*?<div\s+class=\"view-text\">(.*?)</div>",
     re.S,
 )
-CLASSIFICATION_PATTERN = re.compile(r"<li\s+class=\"view_font02\">\s*【분류】\s*(.*?)</li>", re.S)
+CLASSIFICATION_PATTERN = re.compile(r"<li\s+class=\"view_font02\">\s*[【〖]분류[】〗]\s*(.*?)</li>", re.S)
 TOTAL_COUNT_PATTERN = re.compile(r"검색결과\s*<strong>(\d+)</strong>개")
 HIDDEN_VALUE_TEMPLATE = '<input[^>]+id="{field}"[^>]+value="([^"]*)"'
 
@@ -226,8 +223,6 @@ def normalize_king_name(value: str | None) -> str | None:
 def build_opener() -> urllib.request.OpenerDirector:
     cookie_jar = CookieJar()
     context = ssl.create_default_context()
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
     return urllib.request.build_opener(
         urllib.request.HTTPCookieProcessor(cookie_jar),
         urllib.request.HTTPSHandler(context=context),
@@ -236,7 +231,6 @@ def build_opener() -> urllib.request.OpenerDirector:
 
 def build_http_client() -> Any:
     if requests is not None:
-        requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
         return None
     return build_opener()
 
@@ -256,9 +250,9 @@ def fetch_text(
     if requests is not None:
         try:
             if data is not None:
-                response = requests.post(url, data=data, timeout=timeout, verify=False, headers=headers)
+                response = requests.post(url, data=data, timeout=timeout, headers=headers)
             else:
-                response = requests.get(url, timeout=timeout, verify=False, headers=headers)
+                response = requests.get(url, timeout=timeout, headers=headers)
             response.raise_for_status()
             return response.text
         except Exception as error:  # noqa: BLE001
@@ -452,8 +446,9 @@ def search_sillok(
         page_filtered = filter_results(report.items, king=king, year=year)
         filtered_results.extend(page_filtered)
 
-        page_size = max(len(report.items), DEFAULT_PAGE_SIZE)
-        total_pages = max(1, math.ceil((report.type_count or report.total_results or 0) / page_size))
+        if page_index == 1:
+            page_size = len(report.items) or 1
+            total_pages = max(1, math.ceil((report.type_count or report.total_results or 0) / page_size))
         if len(filtered_results) >= limit or not report.items:
             break
         page_index += 1
