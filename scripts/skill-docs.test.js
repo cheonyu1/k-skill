@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const childProcess = require("node:child_process");
 
@@ -1142,4 +1143,66 @@ test("korean-law-search skill keeps korean-law-mcp-first guidance while document
     "expected no repo workspace to be added for korean-law-search",
   );
   assert.equal(fs.existsSync(path.join(repoRoot, "packages", "korean-law-search")), false);
+});
+
+test("repository docs advertise the joseon-sillok-search skill and helper", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "joseon-sillok-search.md");
+  const featureDoc = read(path.join("docs", "features", "joseon-sillok-search.md"));
+  const skillPath = path.join(repoRoot, "joseon-sillok-search", "SKILL.md");
+  const skill = read(path.join("joseon-sillok-search", "SKILL.md"));
+  const sources = read(path.join("docs", "sources.md"));
+  const roadmap = read(path.join("docs", "roadmap.md"));
+
+  assert.ok(fs.existsSync(featureDocPath), "expected docs/features/joseon-sillok-search.md to exist");
+  assert.ok(fs.existsSync(skillPath), "expected joseon-sillok-search/SKILL.md to exist");
+  assert.match(readme, /\| 조선왕조실록 검색 \|/);
+  assert.match(readme, /\[조선왕조실록 검색 가이드\]\(docs\/features\/joseon-sillok-search\.md\)/);
+  assert.match(install, /--skill joseon-sillok-search/);
+  assert.match(install, /python3 scripts\/sillok_search\.py --query "훈민정음" --king 세종 --year 1443/);
+  assert.match(skill, /sillok\.history\.go\.kr/);
+  assert.match(skill, /--king/);
+  assert.match(skill, /--year/);
+  assert.match(featureDoc, /python3 scripts\/sillok_search\.py --query "훈민정음"/);
+  assert.match(featureDoc, /1443/);
+  assert.match(featureDoc, /kda_12512030_002/);
+  assert.match(sources, /https:\/\/sillok\.history\.go\.kr/);
+  assert.match(sources, /https:\/\/sillok\.history\.go\.kr\/search\/searchResultList\.do/);
+  assert.match(roadmap, /조선왕조실록 검색 스킬 출시/);
+});
+
+test("joseon-sillok-search install payload includes the documented helper command", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "joseon-sillok-"));
+  const installedSkillPath = path.join(tempRoot, "joseon-sillok-search");
+  const bundledHelperPath = path.join(installedSkillPath, "scripts", "sillok_search.py");
+
+  try {
+    fs.cpSync(path.join(repoRoot, "joseon-sillok-search"), installedSkillPath, { recursive: true });
+
+    assert.ok(fs.existsSync(bundledHelperPath), "expected joseon-sillok-search/scripts/sillok_search.py to exist");
+
+    const helpText = childProcess.execFileSync("python3", ["scripts/sillok_search.py", "--help"], {
+      cwd: installedSkillPath,
+      encoding: "utf8",
+    });
+
+    assert.match(helpText, /Search Joseon Sillok records from sillok\.history\.go\.kr/);
+    assert.match(helpText, /--query/);
+    assert.match(helpText, /--king/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("repository docs advertise the shipped korean-spell-check helper assets", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "korean-spell-check.md");
+  const helperPath = path.join(repoRoot, "scripts", "korean_spell_check.py");
+
+  assert.equal(fs.existsSync(featureDocPath), true);
+  assert.equal(fs.existsSync(helperPath), true);
+  assert.match(readme, /\[한국어 맞춤법 검사 가이드\]\(docs\/features\/korean-spell-check\.md\)/);
+  assert.match(install, /python3 scripts\/korean_spell_check\.py/);
 });
