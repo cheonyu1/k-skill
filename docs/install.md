@@ -58,7 +58,8 @@ npx --yes skills add <owner/repo> \
   --skill zipcode-search \
   --skill delivery-tracking \
   --skill coupang-product-search \
-  --skill used-car-price-search
+  --skill used-car-price-search \
+  --skill korean-spell-check
 ```
 
 인증이 필요한 기능만 부분 설치할 때도 `k-skill-setup` 은 같이 넣는다.
@@ -139,6 +140,12 @@ brew install tossctl
 
 ```bash
 python3 -m pip install SRTrain korail2 pycryptodome
+```
+
+한국어 맞춤법 검사 helper는 별도 외부 패키지 없이 표준 라이브러리 `python3` 만 있으면 된다.
+
+```bash
+python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다."
 ```
 
 운영체제 정책이나 권한 때문에 전역 설치가 막히면, 임의의 대체 구현으로 넘어가지 말고 그 차단 사유를 사용자에게 설명한 뒤 다음 설치 단계를 정합니다.

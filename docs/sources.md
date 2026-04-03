@@ -18,6 +18,11 @@
 - KakaoTalk Mac 설치 참고(`mas`): https://velog.io/@bonjugi/%EB%A7%A5%EB%B6%81-M1%EC%97%90-homebrew%EB%A1%9C-node-vscode-%EC%B9%B4%EC%B9%B4%EC%98%A4%ED%86%A1-%EC%84%A4%EC%B9%98%ED%95%98%EA%B8%B0
 - 동행복권 로또 결과 페이지: https://www.dhlottery.co.kr/lt645/result
 - 동행복권 지난 회차 JSON 표면: https://www.dhlottery.co.kr/lt645/selectPstLt645InfoNew.do
+- 바른한글 메인: https://nara-speller.co.kr/speller/
+- 바른한글 사용법: https://nara-speller.co.kr/guide/
+- 바른한글 이전 버전: https://nara-speller.co.kr/old_speller/
+- 바른한글 이전 버전 결과 POST 표면: https://nara-speller.co.kr/old_speller/results
+- 바른한글 robots: https://nara-speller.co.kr/robots.txt
 - 다이소몰 매장 검색: https://www.daisomall.co.kr/api/ms/msg/selStr
 - 다이소몰 매장 검색어 목록: https://www.daisomall.co.kr/api/ms/msg/selStrSrchKeyword
 - 다이소몰 매장 상세: https://www.daisomall.co.kr/api/dl/dla-api/selStrInfo

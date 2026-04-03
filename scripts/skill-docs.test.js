@@ -183,6 +183,34 @@ test("repository docs advertise the used-car-price-search skill", () => {
   );
 });
 
+test("repository docs advertise the korean-spell-check skill and usage constraints", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "korean-spell-check.md");
+  const skillPath = path.join(repoRoot, "korean-spell-check", "SKILL.md");
+  const featureDoc = read(path.join("docs", "features", "korean-spell-check.md"));
+  const skill = read(path.join("korean-spell-check", "SKILL.md"));
+  const sources = read(path.join("docs", "sources.md"));
+  const roadmap = read(path.join("docs", "roadmap.md"));
+
+  assert.ok(fs.existsSync(featureDocPath), "expected docs/features/korean-spell-check.md to exist");
+  assert.ok(fs.existsSync(skillPath), "expected korean-spell-check/SKILL.md to exist");
+  assert.match(readme, /\| 한국어 맞춤법 검사 \|/);
+  assert.match(readme, /\[한국어 맞춤법 검사 가이드\]\(docs\/features\/korean-spell-check\.md\)/);
+  assert.match(install, /--skill korean-spell-check/);
+  assert.match(skill, /비상업적 용도|개인이나 학생만 무료/);
+  assert.match(skill, /robots\.txt/i);
+  assert.match(skill, /청크|chunk/i);
+  assert.match(skill, /원문.*교정안.*이유/s);
+  assert.match(featureDoc, /old_speller\/results/);
+  assert.match(featureDoc, /Cloudflare|403/);
+  assert.match(featureDoc, /python3 scripts\/korean_spell_check\.py/);
+  assert.match(sources, /https:\/\/nara-speller\.co\.kr\/speller\//);
+  assert.match(sources, /https:\/\/nara-speller\.co\.kr\/old_speller\//);
+  assert.match(sources, /https:\/\/nara-speller\.co\.kr\/robots\.txt/);
+  assert.match(roadmap, /한국어 맞춤법 검사 스킬 출시/);
+});
+
 test("used-car-price-search docs document the provider survey and SK direct surface", () => {
   const skill = read(path.join("used-car-price-search", "SKILL.md"));
   const featureDoc = read(path.join("docs", "features", "used-car-price-search.md"));
