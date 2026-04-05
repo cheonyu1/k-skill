@@ -12,11 +12,12 @@
 client/skill -> k-skill-proxy -> upstream public API
 ```
 
-현재 기본 엔드포인트는 아래 둘입니다.
+현재 기본 엔드포인트는 아래와 같습니다.
 
 - `GET /health`
 - `GET /v1/fine-dust/report`
 - `GET /v1/seoul-subway/arrival`
+- `GET /v1/han-river/water-level`
 - `GET /B552584/:service/:operation` (허용된 AirKorea route passthrough)
 
 ## 권장 환경변수
@@ -29,6 +30,7 @@ client/skill -> k-skill-proxy -> upstream public API
 
 - `AIR_KOREA_OPEN_API_KEY=...`
 - `SEOUL_OPEN_API_KEY=...`
+- `HRFCO_OPEN_API_KEY=...`
 - `KSKILL_PROXY_PORT=4020`
 
 ## PM2 + cloudflared
@@ -62,6 +64,15 @@ curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/fine-dust/report' \
 curl -fsS --get 'http://127.0.0.1:4020/v1/seoul-subway/arrival' \
   --data-urlencode 'stationName=강남'
 ```
+
+한강 수위 정보 endpoint:
+
+```bash
+curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/han-river/water-level' \
+  --data-urlencode 'stationName=한강대교'
+```
+
+이 endpoint 는 내부적으로 HRFCO `waterlevel/info.json` 으로 관측소를 찾고, `waterlevel/list/10M/{WLOBSCD}.json` 으로 최신 10분 수위/유량을 가져옵니다.
 
 AirKorea passthrough endpoint:
 

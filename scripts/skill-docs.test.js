@@ -1300,3 +1300,44 @@ test("repository docs advertise the shipped korean-spell-check helper assets", (
   assert.match(readme, /\[한국어 맞춤법 검사 가이드\]\(docs\/features\/korean-spell-check\.md\)/);
   assert.match(install, /python3 scripts\/korean_spell_check\.py/);
 });
+
+test("repository docs advertise the han-river-water-level skill and hosted proxy workflow", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const setup = read(path.join("docs", "setup.md"));
+  const proxyDoc = read(path.join("docs", "features", "k-skill-proxy.md"));
+  const proxyReadme = read(path.join("packages", "k-skill-proxy", "README.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "han-river-water-level.md");
+  const featureDoc = read(path.join("docs", "features", "han-river-water-level.md"));
+  const skillPath = path.join(repoRoot, "han-river-water-level", "SKILL.md");
+  const skill = read(path.join("han-river-water-level", "SKILL.md"));
+  const sources = read(path.join("docs", "sources.md"));
+  const roadmap = read(path.join("docs", "roadmap.md"));
+
+  assert.ok(fs.existsSync(featureDocPath), "expected docs/features/han-river-water-level.md to exist");
+  assert.ok(fs.existsSync(skillPath), "expected han-river-water-level/SKILL.md to exist");
+
+  assert.match(readme, /\| 한강 수위 정보 조회 \|/);
+  assert.match(readme, /\[한강 수위 정보 가이드\]\(docs\/features\/han-river-water-level\.md\)/);
+  assert.match(install, /--skill han-river-water-level/);
+
+  for (const doc of [skill, featureDoc]) {
+    assert.match(doc, /https:\/\/k-skill-proxy\.nomadamas\.org\/v1\/han-river\/water-level/);
+    assert.match(doc, /stationName|station_code|stationCode/);
+    assert.match(doc, /수위|유량/);
+    assert.match(doc, /ServiceKey|API key/);
+    assert.match(doc, /candidate_stations|ambiguous_station/);
+  }
+
+  for (const doc of [proxyDoc, proxyReadme]) {
+    assert.match(doc, /\/v1\/han-river\/water-level/);
+    assert.match(doc, /HRFCO_OPEN_API_KEY/);
+    assert.match(doc, /waterlevel\/info\.json/);
+    assert.match(doc, /waterlevel\/list\/10M/);
+  }
+
+  assert.match(setup, /한강 수위 정보 조회 \| 사용자 시크릿 불필요/);
+  assert.match(sources, /hrfco\.go\.kr\/web\/openapiPage\/reference\.do/);
+  assert.match(sources, /api\.hrfco\.go\.kr/);
+  assert.match(roadmap, /한강 수위 정보 조회 스킬 출시/);
+});
