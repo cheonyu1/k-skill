@@ -1,15 +1,15 @@
 const KRX_MARKETS = ["KOSPI", "KOSDAQ", "KONEX"];
 
 const KRX_BASE_INFO_URLS = {
-  KOSPI: "http://data-dbg.krx.co.kr/svc/apis/sto/stk_isu_base_info",
-  KOSDAQ: "http://data-dbg.krx.co.kr/svc/apis/sto/ksq_isu_base_info",
-  KONEX: "http://data-dbg.krx.co.kr/svc/apis/sto/knx_isu_base_info"
+  KOSPI: "https://data-dbg.krx.co.kr/svc/apis/sto/stk_isu_base_info",
+  KOSDAQ: "https://data-dbg.krx.co.kr/svc/apis/sto/ksq_isu_base_info",
+  KONEX: "https://data-dbg.krx.co.kr/svc/apis/sto/knx_isu_base_info"
 };
 
 const KRX_TRADE_INFO_URLS = {
-  KOSPI: "http://data-dbg.krx.co.kr/svc/apis/sto/stk_bydd_trd",
-  KOSDAQ: "http://data-dbg.krx.co.kr/svc/apis/sto/ksq_bydd_trd",
-  KONEX: "http://data-dbg.krx.co.kr/svc/apis/sto/knx_bydd_trd"
+  KOSPI: "https://data-dbg.krx.co.kr/svc/apis/sto/stk_bydd_trd",
+  KOSDAQ: "https://data-dbg.krx.co.kr/svc/apis/sto/ksq_bydd_trd",
+  KONEX: "https://data-dbg.krx.co.kr/svc/apis/sto/knx_bydd_trd"
 };
 
 function buildUrl(baseUrl, params) {
@@ -168,18 +168,6 @@ async function fetchTradeInfo({ market, basDd = getCurrentKstDate(), codeList, a
   const directlyMatched = tradeItems.filter((item) => matchesCodes(item, codeList));
   if (directlyMatched.length > 0) {
     return directlyMatched.map((item) => normalizeTradeItem(item, market));
-  }
-
-  if (tradeItems.length === 1 && codeList.length === 1) {
-    return tradeItems.map((item) =>
-      normalizeTradeItem(
-        {
-          ...item,
-          ISU_SRT_CD: item.ISU_SRT_CD || codeList[0]
-        },
-        market
-      )
-    );
   }
 
   const baseItems = await fetchBaseInfo({ market, basDd, codeList, apiKey, fetchImpl });

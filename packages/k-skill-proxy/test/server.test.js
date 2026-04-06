@@ -131,6 +131,7 @@ test("korean stock search endpoint stays public and caches normalized search que
   assert.equal(first.json().items[0].market, "KOSPI");
   assert.equal(first.json().items[0].code, "005930");
   assert.equal(first.json().items[0].name, "삼성전자");
+  assert.ok(fetchCalls.every((entry) => entry.url.startsWith("https://data-dbg.krx.co.kr/")));
   assert.match(fetchCalls[0].url, /basDd=20260404/);
   assert.equal(fetchCalls[0].headers.AUTH_KEY, "krx-key");
 });
@@ -201,6 +202,7 @@ test("korean stock base-info endpoint normalizes upstream KRX fields", async (t)
   });
 
   assert.equal(response.statusCode, 200);
+  assert.ok(calledUrl.startsWith("https://data-dbg.krx.co.kr/"));
   assert.match(calledUrl, /stk_isu_base_info/);
   assert.match(calledUrl, /basDd=20260404/);
   assert.equal(calledHeaders.AUTH_KEY, "krx-key");
@@ -212,14 +214,17 @@ test("korean stock base-info endpoint normalizes upstream KRX fields", async (t)
 test("korean stock trade-info endpoint caches successful responses", async (t) => {
   const originalFetch = global.fetch;
   let fetchCalls = 0;
-  global.fetch = async () => {
+  let calledUrl;
+  global.fetch = async (url) => {
     fetchCalls += 1;
+    calledUrl = String(url);
     return new Response(
       JSON.stringify({
         OutBlock_1: [
           {
             BAS_DD: "20260404",
             ISU_CD: "KR7005930003",
+            ISU_SRT_CD: "005930",
             ISU_NM: "삼성전자",
             MKT_NM: "KOSPI",
             SECT_TP_NM: "대형주",
@@ -267,10 +272,76 @@ test("korean stock trade-info endpoint caches successful responses", async (t) =
   assert.equal(first.statusCode, 200);
   assert.equal(second.statusCode, 200);
   assert.equal(fetchCalls, 1);
+  assert.ok(calledUrl.startsWith("https://data-dbg.krx.co.kr/"));
   assert.equal(first.json().proxy.cache.hit, false);
   assert.equal(second.json().proxy.cache.hit, true);
   assert.equal(first.json().item.close_price, 84000);
   assert.equal(first.json().item.trading_value, 1030000000000);
+});
+
+test("korean stock trade-info endpoint does not relabel an unmatched single-row upstream response", async (t) => {
+  const originalFetch = global.fetch;
+  const fetchCalls = [];
+  global.fetch = async (url) => {
+    const text = String(url);
+    fetchCalls.push(text);
+
+    if (text.includes("stk_bydd_trd")) {
+      return new Response(
+        JSON.stringify({
+          OutBlock_1: [
+            {
+              BAS_DD: "20260404",
+              ISU_CD: "KR7000660001",
+              ISU_NM: "하이트진로",
+              MKT_NM: "KOSPI",
+              SECT_TP_NM: "중형주",
+              TDD_CLSPRC: "21000"
+            }
+          ]
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json;charset=UTF-8" }
+        }
+      );
+    }
+
+    if (text.includes("stk_isu_base_info")) {
+      return new Response(
+        JSON.stringify({
+          OutBlock_1: []
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json;charset=UTF-8" }
+        }
+      );
+    }
+
+    throw new Error(`unexpected URL: ${url}`);
+  };
+
+  const app = buildServer({
+    env: {
+      KRX_API_KEY: "krx-key"
+    }
+  });
+
+  t.after(async () => {
+    global.fetch = originalFetch;
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/korean-stock/trade-info?market=KOSPI&code=005930&bas_dd=20260404"
+  });
+
+  assert.equal(response.statusCode, 404);
+  assert.equal(response.json().error, "not_found");
+  assert.equal(fetchCalls.length, 2);
+  assert.ok(fetchCalls.every((entry) => entry.startsWith("https://data-dbg.krx.co.kr/")));
 });
 
 test("fine dust endpoint stays publicly callable without proxy auth", async (t) => {
