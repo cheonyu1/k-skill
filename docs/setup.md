@@ -35,7 +35,7 @@ chmod 0600 ~/.config/k-skill/secrets.env
 
 실제 값을 채운다.
 
-서울 지하철 도착정보와 한강 수위 정보도 hosted public route rollout 이 끝나기 전까지 `KSKILL_PROXY_BASE_URL` 을 self-host 또는 배포 확인이 끝난 proxy URL 로 채워야 한다. 미세먼지만 쓴다면 이 값을 비워 두고 skill 기본 hosted path를 그대로 써도 된다.
+서울 지하철 도착정보는 hosted public route rollout 이 끝나기 전까지 `KSKILL_PROXY_BASE_URL` 을 self-host 또는 배포 확인이 끝난 proxy URL 로 채워야 한다. 미세먼지와 한강 수위는 `KSKILL_PROXY_BASE_URL` 을 비워 두면 기본 hosted path(`k-skill-proxy.nomadamas.org`)를 그대로 쓴다.
 
 한국 법령 검색의 로컬 CLI/MCP 경로용 `LAW_OC` 는 `korean-law-mcp` 로컬 실행에 쓴다. 로컬 CLI/MCP 경로는 `LAW_OC` 를 채운 뒤 `npm install -g korean-law-mcp` 와 `korean-law list` 로 설치 상태를 확인한다.
 
@@ -71,7 +71,7 @@ bash scripts/check-setup.sh
 | 한국 부동산 실거래가 조회 (공유 URL) | 사용자 시크릿 불필요, 대신 운영자가 self-host + Cloudflare Tunnel + launchd/systemd 를 준비 |
 | 서울 지하철 도착정보 조회 | self-host 또는 배포 확인이 끝난 `KSKILL_PROXY_BASE_URL` |
 | 사용자 위치 미세먼지 조회 | `KSKILL_PROXY_BASE_URL` 또는 `AIR_KOREA_OPEN_API_KEY` |
-| 한강 수위 정보 조회 | 사용자 시크릿 불필요, 대신 self-host 또는 배포 확인이 끝난 `KSKILL_PROXY_BASE_URL` |
+| 한강 수위 정보 조회 | 사용자 시크릿 불필요 (기본 hosted proxy 사용) |
 
 ## 다음에 볼 문서
 

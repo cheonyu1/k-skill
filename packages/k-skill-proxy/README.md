@@ -46,6 +46,7 @@ curl -fsS --get 'http://127.0.0.1:4020/v1/han-river/water-level' \
 
 프록시는 내부적으로 `waterlevel/info.json` 으로 관측소를 해석하고, `waterlevel/list/10M/{WLOBSCD}.json` 으로 최신 수위/유량을 조회합니다.
 
+
 ## PM2 실행
 
 루트의 `ecosystem.config.cjs` + `scripts/run-k-skill-proxy.sh` 조합을 사용하면 재부팅 이후에도 같은 환경변수로 다시 올라옵니다.

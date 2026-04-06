@@ -158,6 +158,7 @@ function normalizeHanRiverWaterLevelQuery(query) {
   };
 }
 
+
 function isAllowedAirKoreaRoute(service, operation) {
   return ALLOWED_AIRKOREA_ROUTES.get(service)?.has(operation) || false;
 }
@@ -291,6 +292,7 @@ async function proxyHrfcoWaterLevelRequest({
     };
   }
 }
+
 
 function buildServer({ env = process.env, provider = null } = {}) {
   const config = buildConfig(env);
@@ -526,6 +528,7 @@ function buildServer({ env = process.env, provider = null } = {}) {
 
     return payload;
   });
+
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);

@@ -253,6 +253,7 @@ test("repository docs advertise the korean-spell-check skill and usage constrain
   assert.match(roadmap, /한국어 맞춤법 검사 스킬 출시/);
 });
 
+
 test("used-car-price-search docs document the provider survey and SK direct surface", () => {
   const skill = read(path.join("used-car-price-search", "SKILL.md"));
   const featureDoc = read(path.join("docs", "features", "used-car-price-search.md"));
@@ -789,6 +790,7 @@ test("olive-young-search skill documents the upstream daiso CLI flow for stores,
   }
 });
 
+
 test("repository docs advertise the coupang-product-search skill", () => {
   const readme = read("README.md");
   const install = read(path.join("docs", "install.md"));
@@ -1159,7 +1161,7 @@ test("package-lock captures the toss-securities workspace metadata for npm ci", 
     resolved: "packages/toss-securities",
     link: true,
   });
-  assert.equal(packageLock.packages["packages/toss-securities"].version, "0.1.0");
+  assert.equal(packageLock.packages["packages/toss-securities"].version, "0.2.0");
   assert.equal(packageLock.packages["packages/toss-securities"].license, "MIT");
   assert.equal(packageLock.packages["packages/toss-securities"].engines.node, ">=18");
 });
@@ -1483,13 +1485,13 @@ test("repository docs advertise the han-river-water-level skill and rollout-pend
     assert.match(doc, /\/v1\/han-river\/water-level/);
     assert.match(doc, /stationName|station_code|stationCode/);
     assert.match(doc, /수위|유량/);
-    assert.match(doc, /ServiceKey|API key/);
     assert.match(doc, /candidate_stations|ambiguous_station/);
-    assert.match(doc, /KSKILL_PROXY_BASE_URL|self-host|로컬 proxy/);
-    assert.match(doc, /배포 확인이 끝나기 전|배포 전|pending deployment/);
+    assert.match(doc, /KSKILL_PROXY_BASE_URL/);
   }
 
-  assert.doesNotMatch(skill, /기본적으로 `https:\/\/k-skill-proxy\.nomadamas\.org\/v1\/han-river\/water-level`/);
+  assert.match(featureDoc, /HRFCO_OPEN_API_KEY/);
+
+  assert.match(skill, /기본적으로 `https:\/\/k-skill-proxy\.nomadamas\.org\/v1\/han-river\/water-level`/);
   assert.doesNotMatch(featureDoc, /기본 hosted 조회:/);
 
   for (const doc of [proxyDoc, proxyReadme]) {
@@ -1500,8 +1502,8 @@ test("repository docs advertise the han-river-water-level skill and rollout-pend
   }
 
   assert.match(setup, /한강 수위 정보 조회 \| 사용자 시크릿 불필요/);
-  assert.match(setup, /한강 수위 정보도 hosted public route rollout 이 끝나기 전까지 .*KSKILL_PROXY_BASE_URL/);
-  assert.match(security, /KSKILL_PROXY_BASE_URL.*서울 지하철.*한강 수위.*route가 실제 배포된 proxy URL/);
+  assert.match(setup, /한강 수위는 .*KSKILL_PROXY_BASE_URL.*기본 hosted path/);
+  assert.match(security, /KSKILL_PROXY_BASE_URL.*서울 지하철.*route가 실제 배포된 proxy URL/);
   assert.match(sources, /hrfco\.go\.kr\/web\/openapiPage\/reference\.do/);
   assert.match(sources, /api\.hrfco\.go\.kr/);
   assert.match(roadmap, /한강 수위 정보 조회 스킬 출시/);
