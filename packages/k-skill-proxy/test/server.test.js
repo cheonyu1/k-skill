@@ -586,3 +586,208 @@ test("proxyHrfcoWaterLevelRequest injects API key and resolves station code path
   assert.match(calledUrls[0], /\/test-hrfco-key\/waterlevel\/info\.json$/);
   assert.match(calledUrls[1], /\/test-hrfco-key\/waterlevel\/list\/10M\/1018683\.json$/);
 });
+
+const SAMPLE_APT_TRADE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <header><resultCode>000</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header>
+  <body>
+    <items>
+      <item>
+        <aptNm>래미안</aptNm><umdNm>반포동</umdNm><excluUseAr>84.99</excluUseAr>
+        <floor>12</floor><dealAmount>  245,000</dealAmount>
+        <dealYear>2024</dealYear><dealMonth>3</dealMonth><dealDay>15</dealDay>
+        <buildYear>2009</buildYear><dealingGbn>중개거래</dealingGbn><cdealType></cdealType>
+      </item>
+    </items>
+    <totalCount>1</totalCount>
+  </body>
+</response>`;
+
+test("real estate region-code endpoint returns matching codes", async (t) => {
+  const app = buildServer();
+
+  t.after(async () => {
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/region-code?q=%EA%B0%95%EB%82%A8%EA%B5%AC"
+  });
+
+  assert.equal(response.statusCode, 200);
+  const body = response.json();
+  assert.ok(body.results.length > 0);
+  assert.ok(body.results.some((r) => r.lawd_cd === "11680"));
+  assert.equal(body.proxy.cache.hit, false);
+});
+
+test("real estate region-code endpoint returns 400 for missing query", async (t) => {
+  const app = buildServer();
+
+  t.after(async () => {
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/region-code"
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.json().error, "bad_request");
+});
+
+test("real estate transaction endpoint returns 503 without API key", async (t) => {
+  const app = buildServer();
+
+  t.after(async () => {
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/apartment/trade?lawd_cd=11680&deal_ymd=202403"
+  });
+
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.json().error, "upstream_not_configured");
+});
+
+test("real estate transaction endpoint returns 404 for invalid asset type", async (t) => {
+  const app = buildServer({
+    env: { DATA_GO_KR_API_KEY: "test-key" }
+  });
+
+  t.after(async () => {
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/mansion/trade?lawd_cd=11680&deal_ymd=202403"
+  });
+
+  assert.equal(response.statusCode, 404);
+});
+
+test("real estate transaction endpoint returns 404 for commercial/rent", async (t) => {
+  const app = buildServer({
+    env: { DATA_GO_KR_API_KEY: "test-key" }
+  });
+
+  t.after(async () => {
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/commercial/rent?lawd_cd=11680&deal_ymd=202403"
+  });
+
+  assert.equal(response.statusCode, 404);
+});
+
+test("real estate transaction endpoint returns 400 for invalid lawd_cd", async (t) => {
+  const app = buildServer({
+    env: { DATA_GO_KR_API_KEY: "test-key" }
+  });
+
+  t.after(async () => {
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/apartment/trade?lawd_cd=abc&deal_ymd=202403"
+  });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("real estate transaction endpoint fetches and returns parsed data", async (t) => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    return new Response(SAMPLE_APT_TRADE_XML, {
+      status: 200,
+      headers: { "content-type": "text/xml;charset=UTF-8" }
+    });
+  };
+
+  const app = buildServer({
+    env: { DATA_GO_KR_API_KEY: "test-key" }
+  });
+
+  t.after(async () => {
+    global.fetch = originalFetch;
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/apartment/trade?lawd_cd=11680&deal_ymd=202403"
+  });
+
+  assert.equal(response.statusCode, 200);
+  const body = response.json();
+  assert.equal(body.items.length, 1);
+  assert.equal(body.items[0].name, "래미안");
+  assert.equal(body.items[0].price_10k, 245000);
+  assert.equal(body.query.asset_type, "apartment");
+  assert.equal(body.query.deal_type, "trade");
+  assert.equal(body.proxy.cache.hit, false);
+});
+
+test("real estate transaction endpoint caches successful responses", async (t) => {
+  const originalFetch = global.fetch;
+  let fetchCalls = 0;
+  global.fetch = async () => {
+    fetchCalls += 1;
+    return new Response(SAMPLE_APT_TRADE_XML, {
+      status: 200,
+      headers: { "content-type": "text/xml;charset=UTF-8" }
+    });
+  };
+
+  const app = buildServer({
+    env: {
+      DATA_GO_KR_API_KEY: "test-key",
+      KSKILL_PROXY_CACHE_TTL_MS: "60000"
+    }
+  });
+
+  t.after(async () => {
+    global.fetch = originalFetch;
+    await app.close();
+  });
+
+  const first = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/apartment/trade?lawd_cd=11680&deal_ymd=202403"
+  });
+  const second = await app.inject({
+    method: "GET",
+    url: "/v1/real-estate/apartment/trade?lawd_cd=11680&deal_ymd=202403"
+  });
+
+  assert.equal(first.json().proxy.cache.hit, false);
+  assert.equal(second.json().proxy.cache.hit, true);
+  assert.equal(fetchCalls, 1);
+});
+
+test("health endpoint reports molitConfigured status", async (t) => {
+  const app = buildServer({
+    env: { DATA_GO_KR_API_KEY: "test-key" }
+  });
+
+  t.after(async () => {
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/health"
+  });
+
+  assert.equal(response.json().upstreams.molitConfigured, true);
+});

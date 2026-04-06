@@ -22,9 +22,15 @@
 - `hwp-mcp`: https://github.com/jkf87/hwp-mcp
 - korean-law-mcp: https://github.com/chrisryugj/korean-law-mcp
 - real-estate-mcp: https://github.com/tae0y/real-estate-mcp/tree/main
-- real-estate-mcp Codex guide: https://github.com/tae0y/real-estate-mcp/blob/main/docs/setup-codex-cli.md
-- real-estate-mcp Docker guide: https://github.com/tae0y/real-estate-mcp/blob/main/docs/setup-docker.md
-- real-estate-mcp OAuth guide: https://github.com/tae0y/real-estate-mcp/blob/main/docs/setup-oauth.md
+- MOLIT 아파트 매매 실거래가 API: https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade
+- MOLIT 아파트 전월세 API: https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent
+- MOLIT 오피스텔 매매 API: https://apis.data.go.kr/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade
+- MOLIT 오피스텔 전월세 API: https://apis.data.go.kr/1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent
+- MOLIT 연립다세대 매매 API: https://apis.data.go.kr/1613000/RTMSDataSvcRHTrade/getRTMSDataSvcRHTrade
+- MOLIT 연립다세대 전월세 API: https://apis.data.go.kr/1613000/RTMSDataSvcRHRent/getRTMSDataSvcRHRent
+- MOLIT 단독/다가구 매매 API: https://apis.data.go.kr/1613000/RTMSDataSvcSHTrade/getRTMSDataSvcSHTrade
+- MOLIT 단독/다가구 전월세 API: https://apis.data.go.kr/1613000/RTMSDataSvcSHRent/getRTMSDataSvcSHRent
+- MOLIT 상업업무용 매매 API: https://apis.data.go.kr/1613000/RTMSDataSvcNrgTrade/getRTMSDataSvcNrgTrade
 - beopmang: https://api.beopmang.org
 - `silver-flight-group/kakaocli`: https://github.com/silver-flight-group/kakaocli
 - KakaoTalk Mac 설치 참고(`mas`): https://velog.io/@bonjugi/%EB%A7%A5%EB%B6%81-M1%EC%97%90-homebrew%EB%A1%9C-node-vscode-%EC%B9%B4%EC%B9%B4%EC%98%A4%ED%86%A1-%EC%84%A4%EC%B9%98%ED%95%98%EA%B8%B0

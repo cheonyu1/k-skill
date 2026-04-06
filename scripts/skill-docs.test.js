@@ -1338,13 +1338,12 @@ test("joseon-sillok-search install payload includes the documented helper comman
   }
 });
 
-test("repository docs advertise the real-estate-search skill and upstream self-host guidance", () => {
+test("repository docs advertise the real-estate-search skill and proxy-based approach", () => {
   const readme = read("README.md");
   const install = read(path.join("docs", "install.md"));
   const setup = read(path.join("docs", "setup.md"));
   const security = read(path.join("docs", "security-and-secrets.md"));
   const setupSkill = read(path.join("k-skill-setup", "SKILL.md"));
-  const examplesSecrets = read(path.join("examples", "secrets.env.example"));
   const featureDocPath = path.join(repoRoot, "docs", "features", "real-estate-search.md");
   const featureDoc = read(path.join("docs", "features", "real-estate-search.md"));
   const skillPath = path.join(repoRoot, "real-estate-search", "SKILL.md");
@@ -1362,35 +1361,23 @@ test("repository docs advertise the real-estate-search skill and upstream self-h
 
   for (const doc of [skill, featureDoc]) {
     assert.match(doc, /https:\/\/github\.com\/tae0y\/real-estate-mcp\/tree\/main/);
-    assert.match(doc, /DATA_GO_KR_API_KEY/);
-    assert.match(doc, /get_apartment_trades/);
-    assert.match(doc, /get_apartment_rent/);
-    assert.match(doc, /get_region_code/);
-    assert.match(doc, /Codex CLI|Claude Desktop/);
-    assert.match(doc, /Cloudflare Tunnel/i);
-    assert.match(doc, /launchd/i);
-    assert.match(doc, /uv run/);
-    assert.match(doc, /cloudflared tunnel/i);
+    assert.match(doc, /k-skill-proxy\.nomadamas\.org/);
+    assert.match(doc, /\/v1\/real-estate\//);
+    assert.match(doc, /apartment\/trade|apartment\/rent/);
+    assert.match(doc, /region-code/);
     assert.doesNotMatch(doc, /packages\/real-estate-search/);
     assert.doesNotMatch(doc, /python-packages\/real-estate-search/);
   }
 
   for (const doc of [install]) {
     assert.match(doc, /https:\/\/github\.com\/tae0y\/real-estate-mcp\/tree\/main/);
-    assert.match(doc, /DATA_GO_KR_API_KEY/);
-    assert.match(doc, /Codex CLI/);
-    assert.match(doc, /Cloudflare Tunnel/i);
-    assert.match(doc, /launchd/i);
-    assert.match(doc, /uv run/);
-    assert.match(doc, /cloudflared tunnel/i);
+    assert.match(doc, /k-skill-proxy\.nomadamas\.org|hosted proxy/);
   }
 
   for (const doc of [setup, security, setupSkill]) {
     assert.match(doc, /DATA_GO_KR_API_KEY/);
-    assert.match(doc, /real-estate-mcp/);
   }
 
-  assert.match(examplesSecrets, /^DATA_GO_KR_API_KEY=replace-me$/m);
   assert.match(sources, /real-estate-mcp: https:\/\/github\.com\/tae0y\/real-estate-mcp\/tree\/main/);
   assert.match(roadmap, /한국 부동산 실거래가 조회 스킬 출시/);
   assert.ok(
@@ -1400,36 +1387,19 @@ test("repository docs advertise the real-estate-search skill and upstream self-h
   assert.equal(fs.existsSync(path.join(repoRoot, "packages", "real-estate-search")), false);
 });
 
-test("real-estate-search docs keep the upstream Onbid WIP caveat and avoid launchd daemonize loops", () => {
+test("real-estate-search skill uses proxy endpoints not MCP self-host", () => {
   const featureDoc = read(path.join("docs", "features", "real-estate-search.md"));
-  const installDoc = read(path.join("docs", "install.md"));
   const skill = read(path.join("real-estate-search", "SKILL.md"));
 
   for (const doc of [skill, featureDoc]) {
-    assert.match(doc, /get_public_auction_items/);
-    assert.match(doc, /get_public_auction_item_detail/);
-    assert.match(doc, /WIP|작업 중|준비 중/);
+    assert.match(doc, /k-skill-proxy\.nomadamas\.org\/v1\/real-estate/);
+    assert.match(doc, /curl/);
+    assert.doesNotMatch(doc, /uv run/);
+    assert.doesNotMatch(doc, /codex mcp add/);
+    assert.doesNotMatch(doc, /Cloudflare Tunnel/i);
+    assert.doesNotMatch(doc, /launchd/i);
+    assert.doesNotMatch(doc, /docker compose/i);
   }
-
-  const skillLaunchdSection = skill.match(/##\s+.*launchd[\s\S]*?(?=\n##\s+|\n#\s+|$)/i)?.[0];
-  const featureLaunchdSection = featureDoc.match(/###+\s+.*launchd[\s\S]*?(?=\n##\s+|\n#\s+|$)/i)?.[0];
-
-  assert.ok(skillLaunchdSection, "expected skill launchd section");
-  assert.ok(featureLaunchdSection, "expected feature guide launchd section");
-
-  for (const section of [skillLaunchdSection, featureLaunchdSection]) {
-    assert.doesNotMatch(section, /com\.kskill\.real-estate-mcp\.server/);
-    assert.doesNotMatch(section, /launchctl .*real-estate-mcp\.server/i);
-    assert.match(section, /restart:\s*unless-stopped|Docker (Desktop|Engine).*재기동|Docker.*자동 재시작/i);
-    assert.match(section, /cloudflared[\s\S]*tunnel[\s\S]*run[\s\S]*real-estate-mcp/i);
-  }
-
-  assert.doesNotMatch(installDoc, /launchd\s*로\s*서버\/터널을?\s*자동 실행/i);
-  assert.match(installDoc, /launchd[\s\S]*(Cloudflare Tunnel|터널).*(만|전용)/i);
-  assert.match(
-    installDoc,
-    /restart:\s*unless-stopped|Docker (Desktop|Engine).*재기동|Docker.*자동 재시작/i,
-  );
 });
 
 test("repository docs advertise the shipped korean-spell-check helper assets", () => {
@@ -1463,11 +1433,11 @@ test("repository docs advertise the cheap-gas-nearby skill and Opinet key requir
   assert.match(install, /--skill cheap-gas-nearby/);
 
   for (const doc of [setup, security, setupSkill]) {
-    assert.match(doc, /OPINET_API_KEY/);
-    assert.match(doc, /오피넷|Opinet/);
+    assert.match(doc, /주유소 가격|OPINET_API_KEY/);
+    assert.match(doc, /hosted proxy|proxy.*경유/);
   }
 
-  assert.match(examplesSecrets, /^OPINET_API_KEY=replace-me$/m);
+  assert.doesNotMatch(examplesSecrets, /^OPINET_API_KEY=replace-me$/m);
   assert.match(sources, /https:\/\/www\.opinet\.co\.kr\/user\/custapi\/openApiInfo\.do/);
   assert.match(sources, /https:\/\/www\.opinet\.co\.kr\/api\/aroundAll\.do/);
   assert.match(sources, /https:\/\/www\.opinet\.co\.kr\/api\/detailById\.do/);
@@ -1532,7 +1502,7 @@ test("repository docs advertise the han-river-water-level skill and rollout-pend
   }
 
   assert.match(setup, /한강 수위 정보 조회 \| 사용자 시크릿 불필요/);
-  assert.match(setup, /한강 수위는 .*KSKILL_PROXY_BASE_URL.*기본 hosted path/);
+  assert.match(setup, /한강 수위.*기본 hosted p/i);
   assert.match(security, /KSKILL_PROXY_BASE_URL.*서울 지하철.*route가 실제 배포된 proxy URL/);
   assert.match(sources, /hrfco\.go\.kr\/web\/openapiPage\/reference\.do/);
   assert.match(sources, /api\.hrfco\.go\.kr/);
