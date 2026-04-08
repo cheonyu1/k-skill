@@ -82,7 +82,7 @@ chmod 0600 ~/.config/k-skill/secrets.env
 
 한국 부동산 실거래가 조회는 기본 hosted proxy(`k-skill-proxy.nomadamas.org`)를 경유하므로 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다.
 
-생활쓰레기 배출정보 조회는 원본 API endpoint 스펙을 사용하되, `serviceKey`(`DATA_GO_KR_API_KEY`)는 proxy 서버에서 주입/관리하므로 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다.
+생활쓰레기 배출정보 조회는 `k-skill-proxy`의 `/v1/household-waste/info` 라우트를 호출하고, `serviceKey`(`DATA_GO_KR_API_KEY`)는 proxy 서버에서 주입/관리하므로 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다.
 
 근처 가장 싼 주유소 찾기는 기본 hosted proxy를 경유하므로 사용자 쪽 `OPINET_API_KEY` 가 불필요하다.
 
