@@ -49,12 +49,16 @@ npx --yes skills add <owner/repo> \
   --skill kleague-results \
   --skill lck-analytics \
   --skill toss-securities \
+  --skill hipass-receipt \
   --skill lotto-results \
   --skill kakaotalk-mac \
   --skill korean-law-search \
   --skill real-estate-search \
+  --skill korean-stock-search \
   --skill household-waste-info \
   --skill joseon-sillok-search \
+  --skill korean-patent-search \
+  --skill korea-weather \
   --skill cheap-gas-nearby \
   --skill fine-dust-location \
   --skill han-river-water-level \
@@ -65,6 +69,7 @@ npx --yes skills add <owner/repo> \
   --skill zipcode-search \
   --skill delivery-tracking \
   --skill coupang-product-search \
+  --skill bunjang-search \
   --skill used-car-price-search \
   --skill korean-spell-check
 ```
@@ -80,7 +85,10 @@ npx --yes skills add <owner/repo> \
   --skill real-estate-search \
   --skill cheap-gas-nearby \
   --skill joseon-sillok-search \
+  --skill korean-patent-search \
+  --skill hipass-receipt \
   --skill seoul-subway-arrival \
+  --skill korea-weather \
   --skill fine-dust-location
 ```
 
@@ -100,7 +108,29 @@ korean-law list
 
 `real-estate-search` 는 별도 설치 없이 기본 hosted proxy(`k-skill-proxy.nomadamas.org`)를 통해 바로 사용할 수 있다. 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다. 원본 참고: `https://github.com/tae0y/real-estate-mcp/tree/main`. 자세한 사용법은 [한국 부동산 실거래가 조회 가이드](features/real-estate-search.md)를 본다.
 
+`korean-stock-search` 는 별도 설치 없이 기본 hosted proxy(`k-skill-proxy.nomadamas.org`)를 통해 바로 사용할 수 있다. 사용자 쪽 `KRX_API_KEY` 가 불필요하다. 원본 참고: `https://github.com/jjlabsio/korea-stock-mcp`. 자세한 사용법은 [한국 주식 정보 조회 가이드](features/korean-stock-search.md)를 본다.
+
 `household-waste-info` 는 별도 설치 없이 `k-skill-proxy`의 `/v1/household-waste/info` 라우트를 호출하고, `serviceKey`(`DATA_GO_KR_API_KEY`)는 proxy 서버에서만 원본 API(`apis.data.go.kr/1741000/household_waste_info/info`)로 주입한다. 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다. 자세한 사용법은 [생활쓰레기 배출정보 조회 가이드](features/household-waste-info.md)를 본다.
+
+### `korean-stock-search` proxy quickstart
+
+`korean-stock-search` 는 로컬 MCP 설치 대신 **proxy first** 로 사용한다.
+
+- 가장 빠른 smoke test 는 `curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/korean-stock/search' --data-urlencode 'q=삼성전자' --data-urlencode 'bas_dd=20260404'`
+- 검색 결과에서 `market`, `code` 를 확인한 뒤 `base-info` 또는 `trade-info` 로 이어간다.
+- 사용자 쪽 `KRX_API_KEY` 는 필요 없다. self-host proxy 운영자만 서버 환경변수 `KRX_API_KEY` 를 설정한다.
+
+```bash
+curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/korean-stock/search' \
+  --data-urlencode 'q=삼성전자' \
+  --data-urlencode 'bas_dd=20260404'
+
+curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/korean-stock/base-info' \
+  --data-urlencode 'market=KOSPI' \
+  --data-urlencode 'code=005930' \
+  --data-urlencode 'bas_dd=20260404'
+```
+
 
 ### `olive-young-search` upstream CLI quickstart
 
@@ -131,6 +161,53 @@ node dist/bin.js health
 node dist/bin.js get /api/oliveyoung/stores --keyword 명동 --limit 5 --json
 node dist/bin.js get /api/oliveyoung/products --keyword 선크림 --size 5 --json
 node dist/bin.js get /api/oliveyoung/inventory --keyword 선크림 --storeKeyword 명동 --size 5 --json
+```
+
+### `bunjang-search` upstream CLI quickstart
+
+`bunjang-search` 는 upstream 원본 [`pinion05/bunjangcli`](https://github.com/pinion05/bunjangcli) / npm package [`bunjang-cli`](https://www.npmjs.com/package/bunjang-cli) 를 그대로 사용한다.
+
+- 기본 경로는 **CLI first** 다.
+- 가장 빠른 smoke test 는 `npx --yes bunjang-cli --help`
+- 검색/상세조회는 로그인 없이도 먼저 검증할 수 있다.
+- `favorite` / `chat` / `purchase` 는 로그인 세션이 필요하므로 **선택적 로그인 플로우**로만 안내한다.
+- `auth login` 은 headful 브라우저 + TTY(interactive 터미널) 가 필요하다.
+- 대량 수집은 `--start-page`, `--pages`, `--max-items`, `--with-detail`, `--output` 조합을 우선 쓴다.
+- AI 분석용 chunk 는 `--ai --output <directory>` 로 만든다.
+
+```bash
+npx --yes bunjang-cli --help
+npx --yes bunjang-cli --json auth status
+npx --yes bunjang-cli --json search "아이폰" --max-items 3 --sort date
+npx --yes bunjang-cli --json item get 354957625
+npx --yes bunjang-cli search "아이폰" --start-page 1 --pages 2 --max-items 20 --with-detail --output artifacts/bunjang-iphone.json
+npx --yes bunjang-cli search "아이폰" --start-page 1 --pages 2 --max-items 20 --with-detail --ai --output artifacts/bunjang-iphone-ai
+```
+
+로그인된 interactive 세션에서만 아래 액션을 진행한다.
+
+```bash
+npx --yes bunjang-cli auth login
+npx --yes bunjang-cli --json favorite list
+npx --yes bunjang-cli --json favorite add 354957625
+npx --yes bunjang-cli --json favorite remove 354957625
+npx --yes bunjang-cli --json chat list
+npx --yes bunjang-cli --json chat start 354957625 --message "안녕하세요"
+npx --yes bunjang-cli --json chat send 84191651 --message "상품 상태 괜찮을까요?"
+```
+
+
+`korean-patent-search` 는 설치된 skill payload 안의 helper를 그대로 쓴다.
+
+- helper 환경변수는 `KIPRIS_PLUS_API_KEY`
+- 실제 API 요청에서는 이 값을 `ServiceKey` 쿼리 파라미터로 보낸다
+- 공공데이터포털에서 복사한 percent-encoded key를 그대로 넣어도 helper가 한 번 정규화해서 double-encoding 없이 보낸다
+- KIPRIS Plus / 공공데이터포털 안내 기준으로 개발계정은 자동승인, 운영계정은 심의승인 대상이다
+
+```bash
+export KIPRIS_PLUS_API_KEY=your-service-key
+python3 scripts/patent_search.py --query "배터리" --year 2024 --num-rows 5
+python3 scripts/patent_search.py --application-number 1020240001234
 ```
 
 로컬 저장소에서 바로 전체 설치 테스트:
@@ -167,7 +244,7 @@ npm run ci
 ### Node 패키지
 
 ```bash
-npm install -g @ohah/hwpjs kbo-game kleague-results lck-analytics toss-securities k-lotto coupang-product-search used-car-price-search cheap-gas-nearby korean-law-mcp daiso
+npm install -g @ohah/hwpjs kbo-game kleague-results lck-analytics toss-securities hipass-receipt k-lotto coupang-product-search used-car-price-search cheap-gas-nearby korean-law-mcp daiso bunjang-cli
 export NODE_PATH="$(npm root -g)"
 ```
 
@@ -193,6 +270,13 @@ python3 -m pip install SRTrain korail2 pycryptodome
 python3 scripts/sillok_search.py --query "훈민정음" --king 세종 --year 1443
 ```
 
+한국 특허 정보 검색 helper는 설치된 `korean-patent-search` skill 안의 `scripts/patent_search.py` 를 그대로 쓰면 되고, 별도 외부 패키지 없이 표준 라이브러리 `python3` 만 있으면 된다.
+
+```bash
+export KIPRIS_PLUS_API_KEY=your-service-key
+python3 scripts/patent_search.py --query "배터리"
+```
+
 한국어 맞춤법 검사 helper는 별도 외부 패키지 없이 표준 라이브러리 `python3` 만 있으면 된다.
 
 ```bash
@@ -216,9 +300,13 @@ python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다.
 - `srt-booking`
 - `ktx-booking`
 - `seoul-subway-arrival`
+- `korea-weather`
 - `fine-dust-location`
 - `korean-law-search`
 - `real-estate-search`
+- `korean-patent-search`
+- `hipass-receipt`
+- `korean-stock-search`
 - `household-waste-info`
 - `cheap-gas-nearby`
 

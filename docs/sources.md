@@ -8,6 +8,11 @@
 - `korail2` anti-bot bypass PR #54: https://github.com/carpedm20/korail2/pull/54
 - `kbo-game`: https://github.com/vkehfdl1/kbo-game
 - tossinvest-cli: https://github.com/JungHoonGhae/tossinvest-cli
+- 하이패스 메인: https://www.hipass.co.kr/main.do
+- 하이패스 로그인: https://www.hipass.co.kr/comm/lginpg.do
+- 하이패스 사용내역 조회 진입: https://www.hipass.co.kr/usepculr/InitUsePculrTabSearch.do
+- 하이패스 사용내역 이용안내: https://www.hipass.co.kr/html/guide/siteguide_6.jsp
+- 하이패스 사용내역 이용안내(do): https://www.hipass.co.kr/info/guide/siteguide_6.do
 - K League 일정/결과 JSON: https://www.kleague.com/getScheduleList.do
 - K League 팀 순위 JSON: https://www.kleague.com/record/teamRank.do
 - jerjangmin original `lck-analytics` skill pack: https://github.com/jerjangmin/share/tree/main/SKILL/lck-analytics
@@ -22,6 +27,10 @@
 - `hwp-mcp`: https://github.com/jkf87/hwp-mcp
 - korean-law-mcp: https://github.com/chrisryugj/korean-law-mcp
 - real-estate-mcp: https://github.com/tae0y/real-estate-mcp/tree/main
+- korea-stock-mcp: https://github.com/jjlabsio/korea-stock-mcp
+- KRX OPEN API 메인: https://openapi.krx.co.kr/contents/OPP/MAIN/main/index.cmd
+- KRX 종목 기본정보 API (KOSPI): http://data-dbg.krx.co.kr/svc/apis/sto/stk_isu_base_info
+- KRX 일별 매매정보 API (KOSPI): http://data-dbg.krx.co.kr/svc/apis/sto/stk_bydd_trd
 - MOLIT 아파트 매매 실거래가 API: https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade
 - MOLIT 아파트 전월세 API: https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent
 - MOLIT 오피스텔 매매 API: https://apis.data.go.kr/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade
@@ -57,6 +66,8 @@
 - daiso/olive-young public MCP endpoint: https://mcp.aka.page/mcp
 - coupang-mcp (MCP 서버): https://github.com/uju777/coupang-mcp
 - coupang-mcp endpoint: https://yuju777-coupang-mcp.hf.space/mcp
+- bunjang-cli package: https://www.npmjs.com/package/bunjang-cli
+- bunjang-cli repo: https://github.com/pinion05/bunjangcli
 - 블루리본 메인: https://www.bluer.co.kr/
 - 블루리본 지역 검색: https://www.bluer.co.kr/search/zone
 - 블루리본 주변 맛집 JSON: https://www.bluer.co.kr/restaurants/map
@@ -65,11 +76,16 @@
 - 조선왕조실록 메인: https://sillok.history.go.kr
 - 조선왕조실록 검색 결과: https://sillok.history.go.kr/search/searchResultList.do
 - 조선왕조실록 기사 상세: https://sillok.history.go.kr/id/kda_12512030_002
+- KIPRIS Plus 특허/실용신안 API 목록: https://plus.kipris.or.kr/portal/data/service/List.do?subTab=SC001&entYn=N&menuNo=200100
+- 공공데이터포털 특허/실용신안 정보 검색 서비스: https://www.data.go.kr/data/15058788/openapi.do
+- KIPRIS Plus 특허/실용신안 검색 endpoint: https://plus.kipris.or.kr/kipo-api/kipi/patUtiModInfoSearchSevice/getWordSearch
+- KIPRIS Plus 특허/실용신안 서지상세 endpoint: https://plus.kipris.or.kr/kipo-api/kipi/patUtiModInfoSearchSevice/getBibliographyDetailInfoSearch
 - Opinet 오픈 API 안내: https://www.opinet.co.kr/user/custapi/openApiInfo.do
 - Opinet 반경 내 주유소 API: https://www.opinet.co.kr/api/aroundAll.do
 - Opinet 주유소 상세정보 API: https://www.opinet.co.kr/api/detailById.do
 - Opinet 지역코드 API: https://www.opinet.co.kr/api/areaCode.do
 - 서울특별시 지하철 실시간 도착정보: https://www.data.go.kr/data/15058052/openapi.do
+- 기상청 단기예보 조회서비스: https://www.data.go.kr/data/15084084/openapi.do
 - 에어코리아 대기오염정보: https://www.data.go.kr/data/15073861/openapi.do
 - 에어코리아 측정소정보: https://www.data.go.kr/data/15073877/openapi.do
 - 한강홍수통제소 Open API 레퍼런스: https://www.hrfco.go.kr/web/openapiPage/reference.do

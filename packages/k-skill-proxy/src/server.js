@@ -3,10 +3,15 @@ const Fastify = require("fastify");
 const { fetchFineDustReport } = require("./airkorea");
 const { proxyBlueRibbonNearbyRequest } = require("./bluer");
 const { fetchWaterLevelReport } = require("./hrfco");
+const { KRX_MARKETS, fetchBaseInfo, fetchTradeInfo, getCurrentKstDate, searchStocks } = require("./krx-stock");
 const { fetchTransactions, VALID_ASSET_TYPES, VALID_DEAL_TYPES } = require("./molit");
 const { searchRegionCode } = require("./region-lookup");
 const AIR_KOREA_UPSTREAM_BASE_URL = "http://apis.data.go.kr";
+const DATA_GO_KR_UPSTREAM_BASE_URL = "https://apis.data.go.kr";
 const SEOUL_OPEN_API_BASE_URL = "http://swopenapi.seoul.go.kr";
+const KMA_FORECAST_BASE_TIMES = ["0200", "0500", "0800", "1100", "1400", "1700", "2000", "2300"];
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const KMA_FORECAST_READY_MINUTE = 10;
 const OPINET_API_BASE_URL = "https://www.opinet.co.kr/api";
 const ALLOWED_AIRKOREA_ROUTES = new Map([
   ["MsrstnInfoInqireSvc", new Set(["getMsrstnList", "getNearbyMsrstnList", "getTMStdrCrdnt"])],
@@ -40,17 +45,96 @@ function trimOrNull(value) {
   return trimmed;
 }
 
+function padNumber(value, length) {
+  return String(value).padStart(length, "0");
+}
+
+function formatKstDate(date) {
+  const kstDate = new Date(date.getTime() + KST_OFFSET_MS);
+  return `${padNumber(kstDate.getUTCFullYear(), 4)}${padNumber(kstDate.getUTCMonth() + 1, 2)}${padNumber(kstDate.getUTCDate(), 2)}`;
+}
+
+function resolveLatestKmaForecastBase(now = new Date()) {
+  const kstDate = new Date(now.getTime() + KST_OFFSET_MS);
+  const currentMinutes = (kstDate.getUTCHours() * 60) + kstDate.getUTCMinutes();
+
+  for (let index = KMA_FORECAST_BASE_TIMES.length - 1; index >= 0; index -= 1) {
+    const baseTime = KMA_FORECAST_BASE_TIMES[index];
+    const baseHour = Number.parseInt(baseTime.slice(0, 2), 10);
+    const baseMinute = Number.parseInt(baseTime.slice(2, 4), 10);
+    const readyMinutes = (baseHour * 60) + baseMinute + KMA_FORECAST_READY_MINUTE;
+
+    if (currentMinutes >= readyMinutes) {
+      return {
+        baseDate: formatKstDate(now),
+        baseTime
+      };
+    }
+  }
+
+  return {
+    baseDate: formatKstDate(new Date(now.getTime() - (24 * 60 * 60 * 1000))),
+    baseTime: KMA_FORECAST_BASE_TIMES[KMA_FORECAST_BASE_TIMES.length - 1]
+  };
+}
+
+function convertLatLonToKmaGrid(latitude, longitude) {
+  const RE = 6371.00877;
+  const GRID = 5.0;
+  const SLAT1 = 30.0;
+  const SLAT2 = 60.0;
+  const OLON = 126.0;
+  const OLAT = 38.0;
+  const XO = 43;
+  const YO = 136;
+  const DEGRAD = Math.PI / 180.0;
+
+  const re = RE / GRID;
+  const slat1 = SLAT1 * DEGRAD;
+  const slat2 = SLAT2 * DEGRAD;
+  const olon = OLON * DEGRAD;
+  const olat = OLAT * DEGRAD;
+
+  let sn = Math.tan((Math.PI * 0.25) + (slat2 * 0.5)) / Math.tan((Math.PI * 0.25) + (slat1 * 0.5));
+  sn = Math.log(Math.cos(slat1) / Math.cos(slat2)) / Math.log(sn);
+
+  let sf = Math.tan((Math.PI * 0.25) + (slat1 * 0.5));
+  sf = (Math.pow(sf, sn) * Math.cos(slat1)) / sn;
+
+  let ro = Math.tan((Math.PI * 0.25) + (olat * 0.5));
+  ro = (re * sf) / Math.pow(ro, sn);
+
+  let ra = Math.tan((Math.PI * 0.25) + ((latitude * DEGRAD) * 0.5));
+  ra = (re * sf) / Math.pow(ra, sn);
+
+  let theta = (longitude * DEGRAD) - olon;
+  if (theta > Math.PI) {
+    theta -= 2.0 * Math.PI;
+  }
+  if (theta < -Math.PI) {
+    theta += 2.0 * Math.PI;
+  }
+  theta *= sn;
+
+  return {
+    nx: Math.floor((ra * Math.sin(theta)) + XO + 0.5),
+    ny: Math.floor(ro - (ra * Math.cos(theta)) + YO + 0.5)
+  };
+}
+
 function buildConfig(env = process.env) {
   return {
     host: env.KSKILL_PROXY_HOST || "127.0.0.1",
     port: parseInteger(env.KSKILL_PROXY_PORT, 4020),
     proxyName: env.KSKILL_PROXY_NAME || "k-skill-proxy",
     airKoreaApiKey: trimOrNull(env.AIR_KOREA_OPEN_API_KEY),
+    kmaOpenApiKey: trimOrNull(env.KMA_OPEN_API_KEY),
     seoulOpenApiKey: trimOrNull(env.SEOUL_OPEN_API_KEY),
     hrfcoApiKey: trimOrNull(env.HRFCO_OPEN_API_KEY),
     opinetApiKey: trimOrNull(env.OPINET_API_KEY),
     blueRibbonSessionId: trimOrNull(env.BLUE_RIBBON_SESSION_ID),
     molitApiKey: trimOrNull(env.DATA_GO_KR_API_KEY),
+    krxApiKey: trimOrNull(env.KRX_API_KEY),
     cacheTtlMs: parseInteger(env.KSKILL_PROXY_CACHE_TTL_MS, 300000),
     rateLimitWindowMs: parseInteger(env.KSKILL_PROXY_RATE_LIMIT_WINDOW_MS, 60000),
     rateLimitMax: parseInteger(env.KSKILL_PROXY_RATE_LIMIT_MAX, 60)
@@ -91,7 +175,7 @@ function buildRateLimiter(config) {
   const state = new Map();
 
   return function rateLimit(request, reply) {
-    const key = trimOrNull(request.headers["cf-connecting-ip"]) || request.ip || "unknown";
+    const key = request.ip || "unknown";
     const now = Date.now();
     const current = state.get(key);
 
@@ -148,6 +232,76 @@ function normalizeSeoulSubwayQuery(query) {
     stationName,
     startIndex,
     endIndex
+  };
+}
+
+function normalizeKmaForecastQuery(query, now = new Date()) {
+  const rawNx = parseInteger(query.nx, Number.NaN);
+  const rawNy = parseInteger(query.ny, Number.NaN);
+  const latitude = parseFloatValue(query.lat ?? query.latitude);
+  const longitude = parseFloatValue(query.lon ?? query.longitude ?? query.lng);
+  const hasGrid = Number.isFinite(rawNx) && Number.isFinite(rawNy);
+  const hasLatLon = Number.isFinite(latitude) && Number.isFinite(longitude);
+
+  if (!hasGrid && !hasLatLon) {
+    throw new Error("Provide nx/ny or lat/lon.");
+  }
+
+  if ((Number.isFinite(rawNx) && !Number.isFinite(rawNy)) || (!Number.isFinite(rawNx) && Number.isFinite(rawNy))) {
+    throw new Error("Provide both nx and ny.");
+  }
+
+  if ((Number.isFinite(latitude) && !Number.isFinite(longitude)) || (!Number.isFinite(latitude) && Number.isFinite(longitude))) {
+    throw new Error("Provide both lat and lon.");
+  }
+
+  if (hasLatLon && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
+    throw new Error("Provide valid lat and lon.");
+  }
+
+  const pageNo = parseInteger(query.pageNo ?? query.page_no, 1);
+  const numOfRows = parseInteger(query.numOfRows ?? query.num_of_rows, 1000);
+  const dataType = trimOrNull(query.dataType ?? query.data_type)?.toUpperCase() || "JSON";
+  const rawBaseDate = trimOrNull(query.baseDate ?? query.base_date);
+  const rawBaseTime = trimOrNull(query.baseTime ?? query.base_time);
+
+  if ((rawBaseDate && !rawBaseTime) || (!rawBaseDate && rawBaseTime)) {
+    throw new Error("Provide both baseDate and baseTime.");
+  }
+
+  if (pageNo < 1 || numOfRows < 1) {
+    throw new Error("Provide valid pageNo and numOfRows.");
+  }
+
+  if (!["JSON", "XML"].includes(dataType)) {
+    throw new Error("Provide dataType as JSON or XML.");
+  }
+
+  const { baseDate, baseTime } = rawBaseDate && rawBaseTime
+    ? {
+        baseDate: rawBaseDate,
+        baseTime: rawBaseTime
+      }
+    : resolveLatestKmaForecastBase(now);
+
+  if (!/^\d{8}$/.test(baseDate) || !/^\d{4}$/.test(baseTime)) {
+    throw new Error("Provide baseDate as YYYYMMDD and baseTime as HHMM.");
+  }
+
+  const grid = hasGrid ? { nx: rawNx, ny: rawNy } : convertLatLonToKmaGrid(latitude, longitude);
+
+  if (!Number.isFinite(grid.nx) || !Number.isFinite(grid.ny)) {
+    throw new Error(hasGrid ? "Provide valid nx and ny." : "Provide valid lat and lon.");
+  }
+
+  return {
+    baseDate,
+    baseTime,
+    nx: grid.nx,
+    ny: grid.ny,
+    pageNo,
+    numOfRows,
+    dataType
   };
 }
 
@@ -233,6 +387,68 @@ function normalizeHanRiverWaterLevelQuery(query) {
   return {
     stationName,
     stationCode
+  };
+}
+
+function normalizeKrxMarket(value) {
+  const normalized = trimOrNull(value)?.toUpperCase();
+  if (!normalized || !KRX_MARKETS.includes(normalized)) {
+    throw new Error(`Provide market as one of: ${KRX_MARKETS.join(", ")}.`);
+  }
+
+  return normalized;
+}
+
+function normalizeKoreanStockDate(value) {
+  const normalized = trimOrNull(value) || getCurrentKstDate();
+  if (!/^\d{8}$/.test(normalized)) {
+    throw new Error("Provide bas_dd/date as YYYYMMDD.");
+  }
+
+  return normalized;
+}
+
+function normalizeKoreanStockCodes(value) {
+  const values = Array.isArray(value) ? value : [value];
+  const codes = values
+    .flatMap((entry) => String(entry || "").split(","))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (codes.length === 0) {
+    throw new Error("Provide code/stockCode/codes.");
+  }
+
+  return [...new Set(codes)];
+}
+
+function normalizeKoreanStockSearchQuery(query) {
+  const q = trimOrNull(query.q ?? query.query);
+  if (!q) {
+    throw new Error("Provide q/query.");
+  }
+
+  const basDd = normalizeKoreanStockDate(query.bas_dd ?? query.basDd ?? query.date);
+  const marketValue = trimOrNull(query.market);
+  const limit = parseInteger(query.limit, 10);
+
+  if (limit < 1 || limit > 20) {
+    throw new Error("limit must be between 1 and 20.");
+  }
+
+  return {
+    q,
+    basDd,
+    market: marketValue ? normalizeKrxMarket(marketValue) : null,
+    limit
+  };
+}
+
+function normalizeKoreanStockLookupQuery(query) {
+  return {
+    market: normalizeKrxMarket(query.market),
+    code: normalizeKoreanStockCodes(query.code ?? query.codes ?? query.codeList ?? query.stockCode ?? query.stock_code)[0],
+    basDd: normalizeKoreanStockDate(query.bas_dd ?? query.basDd ?? query.date)
   };
 }
 
@@ -323,6 +539,49 @@ async function proxySeoulSubwayRequest({
   };
 }
 
+async function proxyKmaWeatherRequest({
+  baseDate,
+  baseTime,
+  nx,
+  ny,
+  pageNo = 1,
+  numOfRows = 1000,
+  dataType = "JSON",
+  apiKey,
+  fetchImpl = global.fetch
+}) {
+  if (!apiKey) {
+    return {
+      statusCode: 503,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        error: "upstream_not_configured",
+        message: "KMA_OPEN_API_KEY is not configured on the proxy server."
+      })
+    };
+  }
+
+  const url = new URL(`${DATA_GO_KR_UPSTREAM_BASE_URL}/1360000/VilageFcstInfoService_2.0/getVilageFcst`);
+  url.searchParams.set("serviceKey", apiKey);
+  url.searchParams.set("pageNo", String(pageNo));
+  url.searchParams.set("numOfRows", String(numOfRows));
+  url.searchParams.set("dataType", dataType);
+  url.searchParams.set("base_date", baseDate);
+  url.searchParams.set("base_time", baseTime);
+  url.searchParams.set("nx", String(nx));
+  url.searchParams.set("ny", String(ny));
+
+  const response = await fetchImpl(url, {
+    signal: AbortSignal.timeout(20000)
+  });
+
+  return {
+    statusCode: response.status,
+    contentType: response.headers.get("content-type") || "application/json; charset=utf-8",
+    body: await response.text()
+  };
+}
+
 async function proxyOpinetRequest({ path, params, apiKey, fetchImpl = global.fetch }) {
   if (!apiKey) {
     return {
@@ -401,8 +660,7 @@ async function proxyHrfcoWaterLevelRequest({
   }
 }
 
-
-function buildServer({ env = process.env, provider = null } = {}) {
+function buildServer({ env = process.env, provider = null, now = () => new Date() } = {}) {
   const config = buildConfig(env);
   const cache = createMemoryCache();
   const rateLimit = buildRateLimiter(config);
@@ -433,11 +691,13 @@ function buildServer({ env = process.env, provider = null } = {}) {
     port: config.port,
     upstreams: {
       airKoreaConfigured: Boolean(config.airKoreaApiKey),
+      kmaOpenApiConfigured: Boolean(config.kmaOpenApiKey),
       blueRibbonConfigured: Boolean(config.blueRibbonSessionId),
       seoulOpenApiConfigured: Boolean(config.seoulOpenApiKey),
       hrfcoConfigured: Boolean(config.hrfcoApiKey),
       opinetConfigured: Boolean(config.opinetApiKey),
-      molitConfigured: Boolean(config.molitApiKey)
+      molitConfigured: Boolean(config.molitApiKey),
+      krxConfigured: Boolean(config.krxApiKey)
     },
     auth: {
       tokenRequired: false
@@ -563,6 +823,67 @@ function buildServer({ env = process.env, provider = null } = {}) {
     }
 
     const payload = JSON.parse(upstream.body);
+    payload.proxy = {
+      name: config.proxyName,
+      cache: {
+        hit: false,
+        ttl_ms: config.cacheTtlMs
+      },
+      requested_at: new Date().toISOString()
+    };
+
+    if (upstream.statusCode >= 200 && upstream.statusCode < 300) {
+      cache.set(cacheKey, payload, config.cacheTtlMs);
+    }
+
+    return payload;
+  });
+
+  app.get("/v1/korea-weather/forecast", async (request, reply) => {
+    let normalized;
+
+    try {
+      normalized = normalizeKmaForecastQuery(request.query || {}, now());
+    } catch (error) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: error.message
+      };
+    }
+
+    const cacheKey = makeCacheKey({
+      route: "korea-weather-forecast",
+      ...normalized
+    });
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        proxy: {
+          ...cached.proxy,
+          cache: {
+            hit: true,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    const upstream = await proxyKmaWeatherRequest({
+      ...normalized,
+      apiKey: config.kmaOpenApiKey
+    });
+
+    reply.code(upstream.statusCode);
+    reply.header("content-type", upstream.contentType);
+
+    if (!upstream.contentType.includes("json")) {
+      return upstream.body;
+    }
+
+    const payload = JSON.parse(upstream.body);
+    payload.query = { ...normalized };
     payload.proxy = {
       name: config.proxyName,
       cache: {
@@ -993,6 +1314,283 @@ function buildServer({ env = process.env, provider = null } = {}) {
     return payload;
   });
 
+  app.get("/v1/korean-stock/search", async (request, reply) => {
+    let normalized;
+
+    try {
+      normalized = normalizeKoreanStockSearchQuery(request.query || {});
+    } catch (error) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: error.message
+      };
+    }
+
+    const cacheKey = makeCacheKey({
+      route: "korean-stock-search",
+      q: normalized.q.toLowerCase(),
+      basDd: normalized.basDd,
+      market: normalized.market,
+      limit: normalized.limit
+    });
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        proxy: {
+          ...cached.proxy,
+          cache: {
+            hit: true,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    if (!config.krxApiKey) {
+      reply.code(503);
+      return {
+        error: "upstream_not_configured",
+        message: "KRX_API_KEY is not configured on the proxy server.",
+        proxy: {
+          name: config.proxyName,
+          cache: {
+            hit: false,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    let items;
+    try {
+      const result = await searchStocks({
+        query: normalized.q,
+        basDd: normalized.basDd,
+        market: normalized.market,
+        limit: normalized.limit,
+        apiKey: config.krxApiKey,
+        cache,
+        cacheTtlMs: config.cacheTtlMs
+      });
+      items = result.items;
+    } catch (error) {
+      reply.code(error.statusCode && error.statusCode >= 400 ? error.statusCode : 502);
+      return {
+        error: error.code || "proxy_error",
+        message: error.message
+      };
+    }
+
+    const payload = {
+      items,
+      query: {
+        q: normalized.q,
+        bas_dd: normalized.basDd,
+        market: normalized.market,
+        limit: normalized.limit
+      },
+      proxy: {
+        name: config.proxyName,
+        cache: {
+          hit: false,
+          ttl_ms: config.cacheTtlMs
+        },
+        requested_at: new Date().toISOString()
+      }
+    };
+
+    cache.set(cacheKey, payload, config.cacheTtlMs);
+    return payload;
+  });
+
+  app.get("/v1/korean-stock/base-info", async (request, reply) => {
+    let normalized;
+
+    try {
+      normalized = normalizeKoreanStockLookupQuery(request.query || {});
+    } catch (error) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: error.message
+      };
+    }
+
+    const cacheKey = makeCacheKey({
+      route: "korean-stock-base-info",
+      ...normalized
+    });
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        proxy: {
+          ...cached.proxy,
+          cache: {
+            hit: true,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    if (!config.krxApiKey) {
+      reply.code(503);
+      return {
+        error: "upstream_not_configured",
+        message: "KRX_API_KEY is not configured on the proxy server.",
+        proxy: {
+          name: config.proxyName,
+          cache: {
+            hit: false,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    let items;
+    try {
+      items = await fetchBaseInfo({
+        market: normalized.market,
+        basDd: normalized.basDd,
+        codeList: [normalized.code],
+        apiKey: config.krxApiKey
+      });
+    } catch (error) {
+      reply.code(error.statusCode && error.statusCode >= 400 ? error.statusCode : 502);
+      return {
+        error: error.code || "proxy_error",
+        message: error.message
+      };
+    }
+
+    if (items.length === 0) {
+      reply.code(404);
+      return {
+        error: "not_found",
+        message: `기준일 ${normalized.basDd} 에 ${normalized.market} 시장 종목 ${normalized.code} 을(를) 찾지 못했습니다.`
+      };
+    }
+
+    const payload = {
+      items,
+      item: items[0],
+      query: {
+        market: normalized.market,
+        code: normalized.code,
+        codes: [normalized.code],
+        bas_dd: normalized.basDd
+      },
+      proxy: {
+        name: config.proxyName,
+        cache: {
+          hit: false,
+          ttl_ms: config.cacheTtlMs
+        },
+        requested_at: new Date().toISOString()
+      }
+    };
+
+    cache.set(cacheKey, payload, config.cacheTtlMs);
+    return payload;
+  });
+
+  app.get("/v1/korean-stock/trade-info", async (request, reply) => {
+    let normalized;
+
+    try {
+      normalized = normalizeKoreanStockLookupQuery(request.query || {});
+    } catch (error) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: error.message
+      };
+    }
+
+    const cacheKey = makeCacheKey({
+      route: "korean-stock-trade-info",
+      ...normalized
+    });
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        proxy: {
+          ...cached.proxy,
+          cache: {
+            hit: true,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    if (!config.krxApiKey) {
+      reply.code(503);
+      return {
+        error: "upstream_not_configured",
+        message: "KRX_API_KEY is not configured on the proxy server.",
+        proxy: {
+          name: config.proxyName,
+          cache: {
+            hit: false,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    let items;
+    try {
+      items = await fetchTradeInfo({
+        market: normalized.market,
+        basDd: normalized.basDd,
+        codeList: [normalized.code],
+        apiKey: config.krxApiKey
+      });
+    } catch (error) {
+      reply.code(error.statusCode && error.statusCode >= 400 ? error.statusCode : 502);
+      return {
+        error: error.code || "proxy_error",
+        message: error.message
+      };
+    }
+
+    if (items.length === 0) {
+      reply.code(404);
+      return {
+        error: "not_found",
+        message: `기준일 ${normalized.basDd} 에 ${normalized.market} 시장 종목 ${normalized.code} 의 일별 시세를 찾지 못했습니다.`
+      };
+    }
+
+    const payload = {
+      items,
+      item: items[0],
+      query: {
+        market: normalized.market,
+        code: normalized.code,
+        codes: [normalized.code],
+        bas_dd: normalized.basDd
+      },
+      proxy: {
+        name: config.proxyName,
+        cache: {
+          hit: false,
+          ttl_ms: config.cacheTtlMs
+        },
+        requested_at: new Date().toISOString()
+      }
+    };
+
+    cache.set(cacheKey, payload, config.cacheTtlMs);
+    return payload;
+  });
+
   app.get("/v1/household-waste/info", async (request, reply) => {
     const query = request.query || {};
     const sggNm = query["cond[SGG_NM::LIKE]"];
@@ -1115,9 +1713,13 @@ if (require.main === module) {
 module.exports = {
   buildConfig,
   buildServer,
+  convertLatLonToKmaGrid,
   normalizeBlueRibbonNearbyQuery,
   normalizeFineDustQuery,
   normalizeHanRiverWaterLevelQuery,
+  normalizeKmaForecastQuery,
+  normalizeKoreanStockLookupQuery,
+  normalizeKoreanStockSearchQuery,
   normalizeOpinetAroundQuery,
   normalizeOpinetDetailQuery,
   normalizeRealEstateQuery,
@@ -1125,7 +1727,9 @@ module.exports = {
   normalizeSeoulSubwayQuery,
   proxyAirKoreaRequest,
   proxyHrfcoWaterLevelRequest,
+  proxyKmaWeatherRequest,
   proxyOpinetRequest,
   proxySeoulSubwayRequest,
+  resolveLatestKmaForecastBase,
   startServer
 };
