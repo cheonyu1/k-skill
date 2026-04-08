@@ -82,6 +82,8 @@ chmod 0600 ~/.config/k-skill/secrets.env
 
 한국 부동산 실거래가 조회는 기본 hosted proxy(`k-skill-proxy.nomadamas.org`)를 경유하므로 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다.
 
+생활쓰레기 배출정보 조회는 `k-skill-proxy`의 `/v1/household-waste/info` 라우트를 호출하고, `serviceKey`(`DATA_GO_KR_API_KEY`)는 proxy 서버에서 주입/관리하므로 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다.
+
 근처 가장 싼 주유소 찾기는 기본 hosted proxy를 경유하므로 사용자 쪽 `OPINET_API_KEY` 가 불필요하다.
 
 
@@ -96,6 +98,7 @@ chmod 0600 ~/.config/k-skill/secrets.env
 - 로컬 한국 법령 검색: `LAW_OC` + `korean-law-mcp`
 - 한국 법령 검색 remote endpoint: 사용자 `LAW_OC` 없이 `url`만 등록, 장애 시 `법망` fallback
 - 한국 부동산 실거래가 조회: 사용자 시크릿 불필요 (기본 hosted proxy 사용)
+- 생활쓰레기 배출정보 조회: 사용자 시크릿 불필요 (`serviceKey`는 proxy 서버 주입)
 - 근처 가장 싼 주유소 찾기: 사용자 시크릿 불필요 (기본 hosted proxy 사용)
 - 서울 지하철: self-host 또는 배포 확인이 끝난 `KSKILL_PROXY_BASE_URL`
 - 사용자 위치 미세먼지 조회: `KSKILL_PROXY_BASE_URL` 또는 `AIR_KOREA_OPEN_API_KEY`

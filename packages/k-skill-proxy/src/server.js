@@ -993,6 +993,89 @@ function buildServer({ env = process.env, provider = null } = {}) {
     return payload;
   });
 
+  app.get("/v1/household-waste/info", async (request, reply) => {
+    const query = request.query || {};
+    const sggNm = query["cond[SGG_NM::LIKE]"];
+
+    if (!sggNm || !sggNm.trim()) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: "cond[SGG_NM::LIKE] is required"
+      };
+    }
+
+    const pageNo = query.pageNo || "1";
+    const numOfRows = query.numOfRows || "20";
+
+    const cacheKey = makeCacheKey({
+      route: "household-waste-info",
+      sggNm: sggNm.trim(),
+      pageNo,
+      numOfRows
+    });
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        proxy: {
+          ...cached.proxy,
+          cache: { hit: true, ttl_ms: config.cacheTtlMs }
+        }
+      };
+    }
+
+    if (!config.molitApiKey) {
+      reply.code(503);
+      return {
+        error: "upstream_not_configured",
+        message: "DATA_GO_KR_API_KEY is not configured on the proxy server.",
+        proxy: { name: config.proxyName, cache: { hit: false, ttl_ms: config.cacheTtlMs } }
+      };
+    }
+
+    const url = new URL("https://apis.data.go.kr/1741000/household_waste_info/info");
+    url.searchParams.set("serviceKey", config.molitApiKey);
+    url.searchParams.set("pageNo", pageNo);
+    url.searchParams.set("numOfRows", numOfRows);
+    url.searchParams.set("returnType", "json");
+    url.searchParams.set("cond[SGG_NM::LIKE]", sggNm.trim());
+
+    let upstreamData;
+    try {
+      const res = await fetch(url.toString());
+      if (!res.ok) {
+        reply.code(502);
+        return {
+          error: "upstream_error",
+          message: `Upstream responded with ${res.status}`,
+          proxy: { name: config.proxyName, cache: { hit: false, ttl_ms: config.cacheTtlMs } }
+        };
+      }
+      upstreamData = await res.json();
+    } catch (err) {
+      reply.code(502);
+      return {
+        error: "upstream_fetch_failed",
+        message: err.message,
+        proxy: { name: config.proxyName, cache: { hit: false, ttl_ms: config.cacheTtlMs } }
+      };
+    }
+
+    const payload = {
+      ...upstreamData,
+      query: { sgg_nm: sggNm.trim(), page_no: pageNo, num_of_rows: numOfRows },
+      proxy: {
+        name: config.proxyName,
+        cache: { hit: false, ttl_ms: config.cacheTtlMs },
+        requested_at: new Date().toISOString()
+      }
+    };
+
+    cache.set(cacheKey, payload, config.cacheTtlMs);
+    return payload;
+  });
+
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);
     const statusCode = error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;

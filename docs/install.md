@@ -53,6 +53,7 @@ npx --yes skills add <owner/repo> \
   --skill kakaotalk-mac \
   --skill korean-law-search \
   --skill real-estate-search \
+  --skill household-waste-info \
   --skill joseon-sillok-search \
   --skill cheap-gas-nearby \
   --skill fine-dust-location \
@@ -98,6 +99,8 @@ korean-law list
 로컬 설치가 막히면 `https://korean-law-mcp.fly.dev/mcp` remote endpoint를 MCP 클라이언트에 등록한다. 그 경로도 응답하지 않거나 서비스 장애가 나면 `https://api.beopmang.org/mcp` 또는 `https://api.beopmang.org/api/v4/law?action=search` 를 fallback으로 사용한다.
 
 `real-estate-search` 는 별도 설치 없이 기본 hosted proxy(`k-skill-proxy.nomadamas.org`)를 통해 바로 사용할 수 있다. 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다. 원본 참고: `https://github.com/tae0y/real-estate-mcp/tree/main`. 자세한 사용법은 [한국 부동산 실거래가 조회 가이드](features/real-estate-search.md)를 본다.
+
+`household-waste-info` 는 별도 설치 없이 `k-skill-proxy`의 `/v1/household-waste/info` 라우트를 호출하고, `serviceKey`(`DATA_GO_KR_API_KEY`)는 proxy 서버에서만 원본 API(`apis.data.go.kr/1741000/household_waste_info/info`)로 주입한다. 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다. 자세한 사용법은 [생활쓰레기 배출정보 조회 가이드](features/household-waste-info.md)를 본다.
 
 ### `olive-young-search` upstream CLI quickstart
 
@@ -216,6 +219,7 @@ python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다.
 - `fine-dust-location`
 - `korean-law-search`
 - `real-estate-search`
+- `household-waste-info`
 - `cheap-gas-nearby`
 
 관련 문서:
