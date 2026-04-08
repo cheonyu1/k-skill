@@ -55,6 +55,7 @@ npx --yes skills add <owner/repo> \
   --skill korean-law-search \
   --skill real-estate-search \
   --skill korean-stock-search \
+  --skill household-waste-info \
   --skill joseon-sillok-search \
   --skill korean-patent-search \
   --skill korea-weather \
@@ -108,6 +109,8 @@ korean-law list
 `real-estate-search` 는 별도 설치 없이 기본 hosted proxy(`k-skill-proxy.nomadamas.org`)를 통해 바로 사용할 수 있다. 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다. 원본 참고: `https://github.com/tae0y/real-estate-mcp/tree/main`. 자세한 사용법은 [한국 부동산 실거래가 조회 가이드](features/real-estate-search.md)를 본다.
 
 `korean-stock-search` 는 별도 설치 없이 기본 hosted proxy(`k-skill-proxy.nomadamas.org`)를 통해 바로 사용할 수 있다. 사용자 쪽 `KRX_API_KEY` 가 불필요하다. 원본 참고: `https://github.com/jjlabsio/korea-stock-mcp`. 자세한 사용법은 [한국 주식 정보 조회 가이드](features/korean-stock-search.md)를 본다.
+
+`household-waste-info` 는 별도 설치 없이 `k-skill-proxy`의 `/v1/household-waste/info` 라우트를 호출하고, `serviceKey`(`DATA_GO_KR_API_KEY`)는 proxy 서버에서만 원본 API(`apis.data.go.kr/1741000/household_waste_info/info`)로 주입한다. 사용자 쪽 `DATA_GO_KR_API_KEY` 가 불필요하다. 자세한 사용법은 [생활쓰레기 배출정보 조회 가이드](features/household-waste-info.md)를 본다.
 
 ### `korean-stock-search` proxy quickstart
 
@@ -304,6 +307,7 @@ python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다.
 - `korean-patent-search`
 - `hipass-receipt`
 - `korean-stock-search`
+- `household-waste-info`
 - `cheap-gas-nearby`
 
 관련 문서:
