@@ -282,7 +282,6 @@ test("repository docs advertise the korean-spell-check skill and usage constrain
   assert.match(roadmap, /한국어 맞춤법 검사 스킬 출시/);
 });
 
-
 test("used-car-price-search docs document the provider survey and SK direct surface", () => {
   const skill = read(path.join("used-car-price-search", "SKILL.md"));
   const featureDoc = read(path.join("docs", "features", "used-car-price-search.md"));
@@ -1748,6 +1747,73 @@ test("repository docs advertise the shipped korean-spell-check helper assets", (
   assert.equal(fs.existsSync(helperPath), true);
   assert.match(readme, /\[한국어 맞춤법 검사 가이드\]\(docs\/features\/korean-spell-check\.md\)/);
   assert.match(install, /python3 scripts\/korean_spell_check\.py/);
+});
+
+test("repository docs advertise the korean-character-count skill and deterministic counting contract", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "korean-character-count.md");
+  const featureDoc = read(path.join("docs", "features", "korean-character-count.md"));
+  const skillPath = path.join(repoRoot, "korean-character-count", "SKILL.md");
+  const skill = read(path.join("korean-character-count", "SKILL.md"));
+  const sources = read(path.join("docs", "sources.md"));
+  const roadmap = read(path.join("docs", "roadmap.md"));
+  const packageJson = readJson("package.json");
+
+  assert.ok(fs.existsSync(featureDocPath), "expected docs/features/korean-character-count.md to exist");
+  assert.ok(fs.existsSync(skillPath), "expected korean-character-count/SKILL.md to exist");
+
+  assert.match(readme, /\| 한국어 글자 수 세기 \|/);
+  assert.match(readme, /\[한국어 글자 수 세기 가이드\]\(docs\/features\/korean-character-count\.md\)/);
+  assert.match(install, /--skill korean-character-count/);
+  assert.match(install, /node scripts\/korean_character_count\.js --text "가나다"/);
+
+  for (const doc of [skill, featureDoc]) {
+    assert.match(doc, /grapheme|extended grapheme/i);
+    assert.match(doc, /UTF-8/);
+    assert.match(doc, /NEIS/i);
+    assert.match(doc, /CRLF|U\+2028|U\+2029/);
+    assert.match(doc, /node scripts\/korean_character_count\.js/);
+    assert.doesNotMatch(doc, /packages\/korean-character-count/);
+    assert.doesNotMatch(doc, /python-packages\/korean-character-count/);
+  }
+
+  assert.match(sources, /https:\/\/www\.unicode\.org\/reports\/tr29\//);
+  assert.match(sources, /https:\/\/encoding\.spec\.whatwg\.org\//);
+  assert.match(sources, /https:\/\/nodejs\.org\/api\/buffer\.html/);
+  assert.match(roadmap, /한국어 글자 수 세기 스킬 출시/);
+  assert.ok(
+    !packageJson.workspaces.some((workspace) => workspace.includes("korean-character-count")),
+    "expected no repo workspace to be added for korean-character-count",
+  );
+  assert.equal(fs.existsSync(path.join(repoRoot, "packages", "korean-character-count")), false);
+});
+
+test("korean-character-count install payload includes the documented helper command", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "korean-character-count-"));
+  const installedSkillPath = path.join(tempRoot, "korean-character-count");
+  const bundledHelperPath = path.join(installedSkillPath, "scripts", "korean_character_count.js");
+
+  try {
+    fs.cpSync(path.join(repoRoot, "korean-character-count"), installedSkillPath, { recursive: true });
+
+    assert.ok(
+      fs.existsSync(bundledHelperPath),
+      "expected korean-character-count/scripts/korean_character_count.js to exist",
+    );
+
+    const helpText = childProcess.execFileSync("node", ["scripts/korean_character_count.js", "--help"], {
+      cwd: installedSkillPath,
+      encoding: "utf8",
+    });
+
+    assert.match(helpText, /--profile/);
+    assert.match(helpText, /default/);
+    assert.match(helpText, /neis/i);
+    assert.match(helpText, /--stdin/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("repository docs advertise the cheap-gas-nearby skill and Opinet key requirements", () => {

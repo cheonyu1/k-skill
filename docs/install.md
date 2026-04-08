@@ -71,7 +71,8 @@ npx --yes skills add <owner/repo> \
   --skill coupang-product-search \
   --skill bunjang-search \
   --skill used-car-price-search \
-  --skill korean-spell-check
+  --skill korean-spell-check \
+  --skill korean-character-count
 ```
 
 인증이 필요한 기능만 부분 설치할 때도 `k-skill-setup` 은 같이 넣는다.
@@ -281,6 +282,13 @@ python3 scripts/patent_search.py --query "배터리"
 
 ```bash
 python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다."
+```
+
+한국어 글자 수 세기 helper는 별도 외부 패키지 없이 `node` 18+ 만 있으면 된다.
+
+```bash
+node scripts/korean_character_count.js --text "가나다"
+node scripts/korean_character_count.js --text $'첫 줄\n둘째 줄🙂' --profile neis --format text
 ```
 
 운영체제 정책이나 권한 때문에 전역 설치가 막히면, 임의의 대체 구현으로 넘어가지 말고 그 차단 사유를 사용자에게 설명한 뒤 다음 설치 단계를 정합니다.

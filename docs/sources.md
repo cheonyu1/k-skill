@@ -50,6 +50,11 @@
 - 바른한글 이전 버전: https://nara-speller.co.kr/old_speller/
 - 바른한글 이전 버전 결과 POST 표면: https://nara-speller.co.kr/old_speller/results
 - 바른한글 robots: https://nara-speller.co.kr/robots.txt
+- Unicode Text Segmentation (UAX #29): https://www.unicode.org/reports/tr29/
+- Unicode Normalization Forms (UAX #15): https://www.unicode.org/reports/tr15/
+- WHATWG Encoding Standard: https://encoding.spec.whatwg.org/
+- Node Buffer.byteLength: https://nodejs.org/api/buffer.html
+- 2023 학교생활기록부 기재요령(경기도교육청 PDF): https://www.goe.go.kr/resource/old/BBSMSTR_000000030136/BBS_202302211104253520.pdf
 - 다이소몰 매장 검색: https://www.daisomall.co.kr/api/ms/msg/selStr
 - 다이소몰 매장 검색어 목록: https://www.daisomall.co.kr/api/ms/msg/selStrSrchKeyword
 - 다이소몰 매장 상세: https://www.daisomall.co.kr/api/dl/dla-api/selStrInfo
