@@ -1,8 +1,11 @@
 import unittest
+from unittest import mock
 
 from scripts.mfds_food_safety import (
+    ApiError,
     FOOD_RECALL_LIVE_URL,
     FOOD_RECALL_SAMPLE_URL,
+    _request_json,
     build_food_interview,
     filter_food_items,
     normalize_food_recall_row,
@@ -92,6 +95,25 @@ class FoodRecallTransportTest(unittest.TestCase):
     def test_food_recall_urls_use_https(self):
         self.assertTrue(FOOD_RECALL_SAMPLE_URL.startswith("https://"))
         self.assertTrue(FOOD_RECALL_LIVE_URL.startswith("https://"))
+
+    def test_request_json_turns_invalid_foodsafety_key_html_into_api_error(self):
+        class FakeResponse:
+            headers = {"Content-Type": "text/html;charset=utf-8"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self):
+                return "<html><script>alert('invalid key');</script></html>".encode("utf-8")
+
+        url = FOOD_RECALL_LIVE_URL.format(api_key="invalid-demo-key", start=1, end=1)
+
+        with mock.patch("scripts.mfds_food_safety.urllib.request.urlopen", return_value=FakeResponse()):
+            with self.assertRaisesRegex(ApiError, "foodsafetykorea-key"):
+                _request_json(url)
 
 
 if __name__ == "__main__":

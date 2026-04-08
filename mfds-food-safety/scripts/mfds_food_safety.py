@@ -116,7 +116,22 @@ def _request_json(url: str, params: dict[str, Any] | None = None) -> dict[str, A
     request = urllib.request.Request(full_url, headers={"Accept": "application/json", "User-Agent": "k-skill-mfds/1.0"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
-            return json.loads(response.read().decode("utf-8"))
+            body = response.read().decode("utf-8", errors="replace")
+            try:
+                return json.loads(body)
+            except json.JSONDecodeError as error:
+                hostname = (urllib.parse.urlparse(request.full_url).hostname or "").casefold()
+                if hostname == "openapi.foodsafetykorea.go.kr":
+                    raise ApiError(
+                        "식품안전나라 응답이 JSON이 아닙니다. --foodsafetykorea-key 가 유효한지 확인하세요.",
+                        url=request.full_url,
+                    ) from error
+
+                content_type = summarize_text(response.headers.get("Content-Type") or "unknown")
+                raise ApiError(
+                    f"MFDS food response was not valid JSON (content-type: {content_type})",
+                    url=request.full_url,
+                ) from error
     except urllib.error.HTTPError as error:
         raise ApiError(f"MFDS food request failed with HTTP {error.code}", status_code=error.code, url=request.full_url) from error
 
