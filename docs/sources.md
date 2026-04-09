@@ -72,6 +72,9 @@
 - 다이소몰 상품 요약 목록: https://www.daisomall.co.kr/ssn/search/GoodsMummResult
 - 다이소몰 매장 픽업 재고: https://www.daisomall.co.kr/api/pd/pdh/selStrPkupStck
 - 다이소몰 온라인 재고: https://www.daisomall.co.kr/api/pdo/selOnlStck
+- 마켓컬리 검색 API(v4): https://api.kurly.com/search/v4/sites/market/normal-search
+- 마켓컬리 검색 개수 API(v3): https://api.kurly.com/search/v3/sites/market/normal-search/count
+- 마켓컬리 상품 상세 페이지 예시: https://www.kurly.com/goods/5063110
 - olive-young / multi-retail upstream repo (`hmmhmmhm/daiso-mcp`): https://github.com/hmmhmmhm/daiso-mcp
 - olive-young CLI package (`daiso`): https://www.npmjs.com/package/daiso
 - olive-young stores API: https://mcp.aka.page/api/oliveyoung/stores

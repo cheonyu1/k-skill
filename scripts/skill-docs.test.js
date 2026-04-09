@@ -829,6 +829,54 @@ test("daiso-product-search docs record the shipped feature and official sources"
   assert.match(sources, /https:\/\/www\.daisomall\.co\.kr\/api\/pd\/pdh\/selStrPkupStck/);
 });
 
+test("repository docs advertise the market-kurly-search skill across the documented surfaces", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const roadmap = read(path.join("docs", "roadmap.md"));
+  const sources = read(path.join("docs", "sources.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "market-kurly-search.md");
+  const skillPath = path.join(repoRoot, "market-kurly-search", "SKILL.md");
+
+  assert.ok(fs.existsSync(featureDocPath), "expected docs/features/market-kurly-search.md to exist");
+  assert.ok(fs.existsSync(skillPath), "expected market-kurly-search/SKILL.md to exist");
+  assert.match(readme, /\| 마켓컬리 상품 조회 \|/);
+  assert.match(readme, /\[마켓컬리 상품 조회 가이드\]\(docs\/features\/market-kurly-search\.md\)/);
+  assert.match(install, /--skill market-kurly-search/);
+  assert.match(install, /npm install -g .* market-kurly-search/);
+  assert.match(roadmap, /마켓컬리 상품 조회 스킬 출시/);
+  assert.match(sources, /https:\/\/api\.kurly\.com\/search\/v4\/sites\/market\/normal-search/);
+  assert.match(sources, /https:\/\/api\.kurly\.com\/search\/v3\/sites\/market\/normal-search\/count/);
+  assert.match(sources, /https:\/\/www\.kurly\.com\/goods\/5063110/);
+});
+
+test("market-kurly-search skill and docs describe the unauthenticated Kurly search and detail flow", () => {
+  const skill = read(path.join("market-kurly-search", "SKILL.md"));
+  const featureDoc = read(path.join("docs", "features", "market-kurly-search.md"));
+
+  assert.match(skill, /^name: market-kurly-search$/m);
+  assert.match(skill, /^description: .*마켓컬리.*상품.*가격.*$/m);
+
+  for (const doc of [skill, featureDoc]) {
+    assert.match(doc, /api\.kurly\.com\/search\/v4\/sites\/market\/normal-search/);
+    assert.match(doc, /api\.kurly\.com\/search\/v3\/sites\/market\/normal-search\/count/);
+    assert.match(doc, /www\.kurly\.com\/goods\/<productNo>|www\.kurly\.com\/goods\/5063110/);
+    assert.match(doc, /로그인 없이|비로그인/);
+    assert.match(doc, /현재 가격|할인/);
+    assert.match(doc, /품절 여부|판매 상태/);
+    assert.match(doc, /가격.*달라질 수|시점에 따라 달라질 수/u);
+    assert.match(doc, /주문|장바구니/);
+    assert.match(doc, /보수적으로|보수적/);
+  }
+});
+
+test("market-kurly-search package exposes reusable search/count/detail helpers", () => {
+  const pkg = require(path.join(repoRoot, "packages", "market-kurly-search", "src", "index.js"));
+
+  assert.equal(typeof pkg.searchProducts, "function");
+  assert.equal(typeof pkg.countProducts, "function");
+  assert.equal(typeof pkg.getProductDetail, "function");
+});
+
 test("repository docs advertise the olive-young-search skill across the documented surfaces", () => {
   const readme = read("README.md");
   const install = read(path.join("docs", "install.md"));
@@ -996,6 +1044,7 @@ test("root pack:dry-run script covers all publishable workspaces", () => {
 
   assert.match(packageJson.scripts["pack:dry-run"], /workspace k-lotto/);
   assert.match(packageJson.scripts["pack:dry-run"], /workspace daiso-product-search/);
+  assert.match(packageJson.scripts["pack:dry-run"], /workspace market-kurly-search/);
   assert.match(packageJson.scripts["pack:dry-run"], /workspace blue-ribbon-nearby/);
   assert.match(packageJson.scripts["pack:dry-run"], /workspace kakao-bar-nearby/);
   assert.match(packageJson.scripts["pack:dry-run"], /workspace kleague-results/);
