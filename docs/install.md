@@ -65,6 +65,7 @@ npx --yes skills add <owner/repo> \
   --skill fine-dust-location \
   --skill han-river-water-level \
   --skill daiso-product-search \
+  --skill market-kurly-search \
   --skill olive-young-search \
   --skill blue-ribbon-nearby \
   --skill kakao-bar-nearby \
@@ -249,7 +250,7 @@ npm run ci
 ### Node 패키지
 
 ```bash
-npm install -g @ohah/hwpjs kbo-game kleague-results lck-analytics toss-securities hipass-receipt k-lotto coupang-product-search used-car-price-search cheap-gas-nearby korean-law-mcp daiso bunjang-cli
+npm install -g @ohah/hwpjs kbo-game kleague-results lck-analytics toss-securities hipass-receipt k-lotto coupang-product-search used-car-price-search cheap-gas-nearby korean-law-mcp market-kurly-search daiso bunjang-cli
 export NODE_PATH="$(npm root -g)"
 ```
 
