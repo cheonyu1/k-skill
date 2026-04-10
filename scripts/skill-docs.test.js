@@ -243,7 +243,16 @@ test("setup guide lists hosted proxy skill coverage including household waste an
     setup,
     /\| 생활쓰레기 배출정보 조회 \| 사용자 시크릿 불필요 \(프록시에 `DATA_GO_KR_API_KEY`가 설정된 hosted\/self-host 사용\) \|/,
   );
+  assert.match(
+    setup,
+    /미세먼지, 한강 수위, 주유소 가격, 생활쓰레기 배출정보, 학교 급식 식단은 `KSKILL_PROXY_BASE_URL` 을 비워 두면 기본 hosted path\(`k-skill-proxy\.nomadamas\.org`\)를 그대로 쓴다\./,
+  );
+  assert.match(
+    setup,
+    /\| 학교 급식 식단 조회 \| 사용자 시크릿 불필요 \(프록시에 `KEDU_INFO_KEY`가 설정된 hosted\/self-host 사용\) \|/,
+  );
   assert.match(setup, /\[생활쓰레기 배출정보 조회 가이드\]\(features\/household-waste-info\.md\)/);
+  assert.match(setup, /\[학교 급식 식단 조회 가이드\]\(features\/k-schoollunch-menu\.md\)/);
 });
 
 test("repository docs advertise the used-car-price-search skill", () => {

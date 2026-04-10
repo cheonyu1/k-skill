@@ -33,7 +33,7 @@ chmod 0600 ~/.config/k-skill/secrets.env
 
 실제 값을 채운다.
 
-서울 지하철 도착정보는 hosted public route rollout 이 끝나기 전까지 `KSKILL_PROXY_BASE_URL` 을 self-host 또는 배포 확인이 끝난 proxy URL 로 채워야 한다. 미세먼지, 한강 수위, 주유소 가격은 `KSKILL_PROXY_BASE_URL` 을 비워 두면 기본 hosted path(`k-skill-proxy.nomadamas.org`)를 그대로 쓴다.
+서울 지하철 도착정보는 hosted public route rollout 이 끝나기 전까지 `KSKILL_PROXY_BASE_URL` 을 self-host 또는 배포 확인이 끝난 proxy URL 로 채워야 한다. 미세먼지, 한강 수위, 주유소 가격, 생활쓰레기 배출정보, 학교 급식 식단은 `KSKILL_PROXY_BASE_URL` 을 비워 두면 기본 hosted path(`k-skill-proxy.nomadamas.org`)를 그대로 쓴다.
 
 한국 법령 검색의 로컬 CLI/MCP 경로용 `LAW_OC` 는 `korean-law-mcp` 로컬 실행에 쓴다. 로컬 CLI/MCP 경로는 `LAW_OC` 를 채운 뒤 `npm install -g korean-law-mcp` 와 `korean-law list` 로 설치 상태를 확인한다.
 
