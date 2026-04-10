@@ -69,6 +69,7 @@ bash scripts/check-setup.sh
 | 서울 지하철 도착정보 조회 | self-host 또는 배포 확인이 끝난 `KSKILL_PROXY_BASE_URL` |
 | 사용자 위치 미세먼지 조회 | `KSKILL_PROXY_BASE_URL` 또는 `AIR_KOREA_OPEN_API_KEY` |
 | 한강 수위 정보 조회 | 사용자 시크릿 불필요 (기본 hosted proxy 사용) |
+| 학교 급식 식단 조회 | 사용자 시크릿 불필요 (프록시에 `KEDU_INFO_KEY`가 설정된 hosted/self-host 사용) |
 
 ## 다음에 볼 문서
 
@@ -80,6 +81,7 @@ bash scripts/check-setup.sh
 - [한국 법령 검색 가이드](features/korean-law-search.md)
 - [한국 부동산 실거래가 조회 가이드](features/real-estate-search.md)
 - [근처 가장 싼 주유소 찾기 가이드](features/cheap-gas-nearby.md)
+- [학교 급식 식단 조회 가이드](features/k-schoollunch-menu.md)
 - [보안/시크릿 정책](security-and-secrets.md)
 
 설치 기본 흐름은 "전체 스킬 설치 → 개별 기능 사용" 이다.

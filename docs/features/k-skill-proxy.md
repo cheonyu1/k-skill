@@ -20,6 +20,8 @@ client/skill -> k-skill-proxy -> upstream public API
 - `GET /v1/han-river/water-level`
 - `GET /v1/opinet/around`
 - `GET /v1/opinet/detail`
+- `GET /v1/neis/school-search` (나이스 학교기본정보, `KEDU_INFO_KEY`)
+- `GET /v1/neis/school-meal` (나이스 급식식단정보, `KEDU_INFO_KEY`)
 - `GET /B552584/:service/:operation` (허용된 AirKorea route passthrough)
 
 ## 권장 환경변수
@@ -34,6 +36,7 @@ client/skill -> k-skill-proxy -> upstream public API
 - `SEOUL_OPEN_API_KEY=...`
 - `HRFCO_OPEN_API_KEY=...`
 - `OPINET_API_KEY=...`
+- `KEDU_INFO_KEY=...` (나이스 교육정보 개방 포털 Open API 인증키)
 - `KSKILL_PROXY_PORT=4020`
 
 ## 프로덕션 배포 구조
@@ -120,6 +123,21 @@ Opinet 주유소 상세 endpoint:
 ```bash
 curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/opinet/detail' \
   --data-urlencode 'id=A0009905'
+```
+
+나이스 학교 검색·급식 endpoint (학교 급식 식단 스킬에서 사용):
+
+```bash
+curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/neis/school-search' \
+  --data-urlencode 'educationOffice=서울특별시교육청' \
+  --data-urlencode 'schoolName=미래초등학교'
+```
+
+```bash
+curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/neis/school-meal' \
+  --data-urlencode 'educationOfficeCode=B10' \
+  --data-urlencode 'schoolCode=7010123' \
+  --data-urlencode 'mealDate=20260410'
 ```
 
 AirKorea passthrough endpoint:

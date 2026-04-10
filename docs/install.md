@@ -66,7 +66,8 @@ npx --yes skills add <owner/repo> \
   --skill delivery-tracking \
   --skill coupang-product-search \
   --skill used-car-price-search \
-  --skill korean-spell-check
+  --skill korean-spell-check \
+  --skill k-schoollunch-menu
 ```
 
 인증이 필요한 기능만 부분 설치할 때도 `k-skill-setup` 은 같이 넣는다.
@@ -221,6 +222,7 @@ python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다.
 - `real-estate-search`
 - `household-waste-info`
 - `cheap-gas-nearby`
+- `k-schoollunch-menu` (hosted proxy에 `KEDU_INFO_KEY`가 배포된 경우 사용자 시크릿 불필요)
 
 관련 문서:
 

@@ -8,12 +8,15 @@
 - `GET /v1/fine-dust/report`
 - `GET /v1/seoul-subway/arrival`
 - `GET /v1/han-river/water-level`
+- `GET /v1/neis/school-search` — 나이스 학교기본정보(교육청명·학교명 검색)
+- `GET /v1/neis/school-meal` — 나이스 급식식단정보(일자별 메뉴)
 
 ## 환경변수
 
 - `AIR_KOREA_OPEN_API_KEY` — 프록시 서버 쪽 AirKorea upstream key
 - `SEOUL_OPEN_API_KEY` — 프록시 서버 쪽 서울 열린데이터 광장 upstream key
 - `HRFCO_OPEN_API_KEY` — 프록시 서버 쪽 한강홍수통제소 upstream key
+- `KEDU_INFO_KEY` — 프록시 서버 쪽 나이스(NEIS) 교육정보 개방 포털 Open API 인증키 (`school-search`, `school-meal`)
 - `KSKILL_PROXY_HOST` — 기본 `127.0.0.1`
 - `KSKILL_PROXY_PORT` — 기본 `4020`
 - `KSKILL_PROXY_CACHE_TTL_MS` — 기본 `300000`
