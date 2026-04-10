@@ -513,6 +513,32 @@ test("ktx-booking helper python regression tests pass", () => {
   );
 });
 
+test("repository docs advertise the subway-lost-property skill across the documented surfaces", () => {
+  const readme = read("README.md");
+  const install = read(path.join("docs", "install.md"));
+  const featureDocPath = path.join(repoRoot, "docs", "features", "subway-lost-property.md");
+  const skillPath = path.join(repoRoot, "subway-lost-property", "SKILL.md");
+
+  assert.ok(fs.existsSync(featureDocPath), "expected docs/features/subway-lost-property.md to exist");
+  assert.ok(fs.existsSync(skillPath), "expected subway-lost-property/SKILL.md to exist");
+  assert.match(readme, /\| 지하철 분실물 조회 \|/);
+  assert.match(readme, /\[지하철 분실물 조회 가이드\]\(docs\/features\/subway-lost-property\.md\)/);
+  assert.match(install, /--skill subway-lost-property/);
+});
+
+test("subway-lost-property docs lock the official LOST112 guidance flow", () => {
+  const skill = read(path.join("subway-lost-property", "SKILL.md"));
+  const featureDoc = read(path.join("docs", "features", "subway-lost-property.md"));
+
+  for (const doc of [skill, featureDoc]) {
+    assert.match(doc, /LOST112/);
+    assert.match(doc, /seoulmetro\.co\.kr\/kr\/page\.do\?menuIdx=541/);
+    assert.match(doc, /python3 scripts\/subway_lost_property\.py/);
+    assert.match(doc, /SITE=V/);
+    assert.match(doc, /안내형|하이브리드/);
+  }
+});
+
 test("repository docs advertise the zipcode-search skill across the documented surfaces", () => {
   const readme = read("README.md");
   const install = read(path.join("docs", "install.md"));

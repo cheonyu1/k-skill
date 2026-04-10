@@ -64,6 +64,7 @@ npx --yes skills add <owner/repo> \
   --skill cheap-gas-nearby \
   --skill fine-dust-location \
   --skill han-river-water-level \
+  --skill subway-lost-property \
   --skill daiso-product-search \
   --skill market-kurly-search \
   --skill olive-young-search \
@@ -94,6 +95,7 @@ npx --yes skills add <owner/repo> \
   --skill korean-patent-search \
   --skill hipass-receipt \
   --skill seoul-subway-arrival \
+  --skill subway-lost-property \
   --skill korea-weather \
   --skill fine-dust-location
 ```
