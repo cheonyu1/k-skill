@@ -331,6 +331,37 @@ function normalizeRegionCodeQuery(query) {
   return { q };
 }
 
+function normalizeHouseholdWasteInfoQuery(query) {
+  const sggNm = trimOrNull(query["cond[SGG_NM::LIKE]"]);
+  if (!sggNm) {
+    throw new Error("cond[SGG_NM::LIKE] is required");
+  }
+
+  const pageNoRaw = trimOrNull(query.pageNo ?? query.page_no) || "1";
+  if (!/^\d+$/.test(pageNoRaw)) {
+    throw new Error("pageNo must be an integer >= 1.");
+  }
+  const pageNo = Number.parseInt(pageNoRaw, 10);
+  if (pageNo < 1) {
+    throw new Error("pageNo must be an integer >= 1.");
+  }
+
+  const numOfRowsRaw = trimOrNull(query.numOfRows ?? query.num_of_rows) || "20";
+  if (!/^\d+$/.test(numOfRowsRaw)) {
+    throw new Error("numOfRows must be an integer between 1 and 100.");
+  }
+  const numOfRows = Number.parseInt(numOfRowsRaw, 10);
+  if (numOfRows < 1 || numOfRows > 100) {
+    throw new Error("numOfRows must be an integer between 1 and 100.");
+  }
+
+  return {
+    sggNm,
+    pageNo: String(pageNo),
+    numOfRows: String(numOfRows)
+  };
+}
+
 function normalizeHanRiverWaterLevelQuery(query) {
   const stationName = trimOrNull(query.stationName ?? query.station_name ?? query.station);
   const stationCode = trimOrNull(query.stationCode ?? query.station_code ?? query.wlobscd);
@@ -1186,25 +1217,21 @@ function buildServer({ env = process.env, provider = null } = {}) {
   });
 
   app.get("/v1/household-waste/info", async (request, reply) => {
-    const query = request.query || {};
-    const sggNm = query["cond[SGG_NM::LIKE]"];
+    let normalized;
 
-    if (!sggNm || !sggNm.trim()) {
+    try {
+      normalized = normalizeHouseholdWasteInfoQuery(request.query || {});
+    } catch (error) {
       reply.code(400);
       return {
         error: "bad_request",
-        message: "cond[SGG_NM::LIKE] is required"
+        message: error.message
       };
     }
 
-    const pageNo = query.pageNo || "1";
-    const numOfRows = query.numOfRows || "20";
-
     const cacheKey = makeCacheKey({
       route: "household-waste-info",
-      sggNm: sggNm.trim(),
-      pageNo,
-      numOfRows
+      ...normalized
     });
     const cached = cache.get(cacheKey);
     if (cached) {
@@ -1228,10 +1255,10 @@ function buildServer({ env = process.env, provider = null } = {}) {
 
     const url = new URL("https://apis.data.go.kr/1741000/household_waste_info/info");
     url.searchParams.set("serviceKey", config.molitApiKey);
-    url.searchParams.set("pageNo", pageNo);
-    url.searchParams.set("numOfRows", numOfRows);
+    url.searchParams.set("pageNo", normalized.pageNo);
+    url.searchParams.set("numOfRows", normalized.numOfRows);
     url.searchParams.set("returnType", "json");
-    url.searchParams.set("cond[SGG_NM::LIKE]", sggNm.trim());
+    url.searchParams.set("cond[SGG_NM::LIKE]", normalized.sggNm);
 
     let upstreamData;
     try {
@@ -1256,7 +1283,11 @@ function buildServer({ env = process.env, provider = null } = {}) {
 
     const payload = {
       ...upstreamData,
-      query: { sgg_nm: sggNm.trim(), page_no: pageNo, num_of_rows: numOfRows },
+      query: {
+        sgg_nm: normalized.sggNm,
+        page_no: normalized.pageNo,
+        num_of_rows: normalized.numOfRows
+      },
       proxy: {
         name: config.proxyName,
         cache: { hit: false, ttl_ms: config.cacheTtlMs },
@@ -1521,6 +1552,7 @@ module.exports = {
   normalizeOpinetDetailQuery,
   normalizeNeisSchoolMealQuery,
   normalizeNeisSchoolSearchQuery,
+  normalizeHouseholdWasteInfoQuery,
   normalizeRealEstateQuery,
   normalizeRegionCodeQuery,
   normalizeSeoulSubwayQuery,

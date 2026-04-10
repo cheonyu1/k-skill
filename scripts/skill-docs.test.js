@@ -143,6 +143,16 @@ test("root npm test script includes the skill docs regression suite", () => {
   assert.match(packageJson.scripts.test, /node --test scripts\/skill-docs\.test\.js/);
 });
 
+test("validate-skills ignores hidden metadata directories", () => {
+  const result = childProcess.spawnSync("bash", ["scripts/validate-skills.sh"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /skill layout looks valid/);
+});
+
 test("README advertises OpenClaw among the supported coding agents", () => {
   const readme = read("README.md");
 
@@ -206,6 +216,20 @@ test("repository docs advertise the kakaotalk-mac skill", () => {
   assert.match(readme, /\| 카카오톡 Mac CLI \|/);
   assert.match(readme, /\[카카오톡 Mac CLI\]\(docs\/features\/kakaotalk-mac\.md\)/);
   assert.match(install, /--skill kakaotalk-mac/);
+});
+
+test("proxy docs keep KEDU_INFO_KEY server-only and document household-waste env requirements", () => {
+  const secretsExample = read(path.join("examples", "secrets.env.example"));
+  const proxyReadme = read(path.join("packages", "k-skill-proxy", "README.md"));
+  const proxyFeatureDoc = read(path.join("docs", "features", "k-skill-proxy.md"));
+
+  assert.doesNotMatch(secretsExample, /^KEDU_INFO_KEY=/m);
+
+  assert.match(proxyReadme, /GET \/v1\/household-waste\/info/);
+  assert.match(proxyReadme, /DATA_GO_KR_API_KEY/);
+
+  assert.match(proxyFeatureDoc, /GET \/v1\/household-waste\/info/);
+  assert.match(proxyFeatureDoc, /DATA_GO_KR_API_KEY/);
 });
 
 test("repository docs advertise the used-car-price-search skill", () => {

@@ -1,6 +1,6 @@
 # k-skill-proxy
 
-`k-skill`용 Fastify 기반 프록시 서버입니다. AirKorea 미세먼지 조회, 서울 지하철 실시간 도착정보, 한강홍수통제소 수위 정보를 감싸고, 이후 무료/공공 API adapter를 추가하는 베이스로 씁니다.
+`k-skill`용 Fastify 기반 프록시 서버입니다. AirKorea 미세먼지 조회, 서울 지하철 실시간 도착정보, 한강홍수통제소 수위 정보, 생활쓰레기 배출정보를 감싸고, 이후 무료/공공 API adapter를 추가하는 베이스로 씁니다.
 
 ## 현재 제공 엔드포인트
 
@@ -8,6 +8,7 @@
 - `GET /v1/fine-dust/report`
 - `GET /v1/seoul-subway/arrival`
 - `GET /v1/han-river/water-level`
+- `GET /v1/household-waste/info` — 생활쓰레기 배출정보 조회 (`DATA_GO_KR_API_KEY` 서버 주입)
 - `GET /v1/neis/school-search` — 나이스 학교기본정보(교육청명·학교명 검색)
 - `GET /v1/neis/school-meal` — 나이스 급식식단정보(일자별 메뉴)
 
@@ -16,6 +17,7 @@
 - `AIR_KOREA_OPEN_API_KEY` — 프록시 서버 쪽 AirKorea upstream key
 - `SEOUL_OPEN_API_KEY` — 프록시 서버 쪽 서울 열린데이터 광장 upstream key
 - `HRFCO_OPEN_API_KEY` — 프록시 서버 쪽 한강홍수통제소 upstream key
+- `DATA_GO_KR_API_KEY` — 프록시 서버 쪽 공공데이터포털 upstream key (`household-waste/info`)
 - `KEDU_INFO_KEY` — 프록시 서버 쪽 나이스(NEIS) 교육정보 개방 포털 Open API 인증키 (`school-search`, `school-meal`)
 - `KSKILL_PROXY_HOST` — 기본 `127.0.0.1`
 - `KSKILL_PROXY_PORT` — 기본 `4020`
@@ -48,6 +50,17 @@ curl -fsS --get 'http://127.0.0.1:4020/v1/han-river/water-level' \
 ```
 
 프록시는 내부적으로 `waterlevel/info.json` 으로 관측소를 해석하고, `waterlevel/list/10M/{WLOBSCD}.json` 으로 최신 수위/유량을 조회합니다.
+
+생활쓰레기 배출정보 예시:
+
+```bash
+curl -fsS --get 'http://127.0.0.1:4020/v1/household-waste/info' \
+  --data-urlencode 'cond[SGG_NM::LIKE]=강남구' \
+  --data-urlencode 'pageNo=1' \
+  --data-urlencode 'numOfRows=20'
+```
+
+프록시는 `serviceKey`를 `DATA_GO_KR_API_KEY`에서만 주입하고 `returnType=json`을 강제합니다. `pageNo`는 1 이상 정수, `numOfRows`는 1~100 범위만 허용합니다.
 
 
 ## PM2 실행

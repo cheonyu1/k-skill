@@ -27,7 +27,7 @@ curl -fsS --get 'https://k-skill-proxy.nomadamas.org/v1/household-waste/info' \
   --data-urlencode 'cond[SGG_NM::LIKE]=강남구'
 ```
 
-현재 proxy가 패스스루하는 파라미터는 `pageNo`, `numOfRows`, `cond[SGG_NM::LIKE]` 뿐이며, `returnType`은 항상 `json`으로 강제된다. 원본 API의 `cond[DAT_CRTR_YMD::*]`, `cond[DAT_UPDT_PNT::*]` 같은 부가 필터는 현재 지원하지 않는다 — 일반 사용자 질의("강남구 쓰레기 배출 요일")는 시군구 검색만으로 충분하기 때문이다.
+현재 proxy가 패스스루하는 파라미터는 `pageNo`, `numOfRows`, `cond[SGG_NM::LIKE]` 뿐이며, `returnType`은 항상 `json`으로 강제된다. `pageNo`는 1 이상 정수만 허용하고 `numOfRows`는 1~100 범위로 제한한다. 원본 API의 `cond[DAT_CRTR_YMD::*]`, `cond[DAT_UPDT_PNT::*]` 같은 부가 필터는 현재 지원하지 않는다 — 일반 사용자 질의("강남구 쓰레기 배출 요일")는 시군구 검색만으로 충분하기 때문이다.
 
 ## 조회 흐름 권장 순서
 
