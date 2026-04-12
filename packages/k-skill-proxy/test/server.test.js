@@ -1787,6 +1787,56 @@ test("neis school-search proxies schoolInfo and resolves 교육청 이름", asyn
   assert.ok(decodeURIComponent(fetchedUrl).includes("미래초등학교"));
 });
 
+test("neis school-search maps rejected upstream fetches to a 502 proxy error", async (t) => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    throw new Error("boom");
+  };
+
+  const app = buildServer({ env: { KEDU_INFO_KEY: "k" } });
+
+  t.after(async () => {
+    global.fetch = originalFetch;
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: `/v1/neis/school-search?educationOffice=${encodeURIComponent("서울특별시교육청")}&schoolName=${encodeURIComponent("미래초등학교")}`
+  });
+
+  assert.equal(response.statusCode, 502);
+  assert.deepEqual(response.json(), {
+    error: "proxy_error",
+    message: "boom"
+  });
+});
+
+test("neis school-meal maps rejected upstream fetches to a 502 proxy error", async (t) => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    throw new Error("boom");
+  };
+
+  const app = buildServer({ env: { KEDU_INFO_KEY: "k" } });
+
+  t.after(async () => {
+    global.fetch = originalFetch;
+    await app.close();
+  });
+
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/neis/school-meal?educationOfficeCode=B10&schoolCode=7010123&mealDate=20260410"
+  });
+
+  assert.equal(response.statusCode, 502);
+  assert.deepEqual(response.json(), {
+    error: "proxy_error",
+    message: "boom"
+  });
+});
+
 test("household waste info endpoint requires SGG_NM filter", async (t) => {
   const app = buildServer({
     env: { DATA_GO_KR_API_KEY: "test-key" }

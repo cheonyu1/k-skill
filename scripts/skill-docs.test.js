@@ -1895,6 +1895,11 @@ test("repository docs advertise the korean-character-count skill and determinist
   assert.match(readme, /\| 한국어 글자 수 세기 \|/);
   assert.match(readme, /\[한국어 글자 수 세기 가이드\]\(docs\/features\/korean-character-count\.md\)/);
   assert.match(install, /--skill korean-character-count/);
+  assert.match(
+    install,
+    /--skill k-schoollunch-menu \\\n  --skill korean-character-count/,
+    "docs/install.md selective-install block should keep k-schoollunch-menu and korean-character-count in the same continued shell command",
+  );
   assert.match(install, /node scripts\/korean_character_count\.js --text "가나다"/);
 
   for (const doc of [skill, featureDoc]) {

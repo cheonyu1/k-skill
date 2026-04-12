@@ -77,7 +77,7 @@ npx --yes skills add <owner/repo> \
   --skill bunjang-search \
   --skill used-car-price-search \
   --skill korean-spell-check \
-  --skill k-schoollunch-menu
+  --skill k-schoollunch-menu \
   --skill korean-character-count
 ```
 

@@ -1785,13 +1785,22 @@ function buildServer({ env = process.env, provider = null, now = () => new Date(
       };
     }
 
-    const upstream = await proxyNeisSchoolInfoRequest({
-      apiKey: config.keduInfoKey,
-      atptOfcdcScCode: normalized.atptOfcdcScCode,
-      schulNm: normalized.schulNm,
-      pIndex: normalized.pIndex,
-      pSize: normalized.pSize
-    });
+    let upstream;
+    try {
+      upstream = await proxyNeisSchoolInfoRequest({
+        apiKey: config.keduInfoKey,
+        atptOfcdcScCode: normalized.atptOfcdcScCode,
+        schulNm: normalized.schulNm,
+        pIndex: normalized.pIndex,
+        pSize: normalized.pSize
+      });
+    } catch (error) {
+      reply.code(error.statusCode && error.statusCode >= 400 ? error.statusCode : 502);
+      return {
+        error: error.code || "proxy_error",
+        message: error.message
+      };
+    }
 
     reply.code(upstream.statusCode);
     reply.header("content-type", upstream.contentType);
@@ -1885,15 +1894,24 @@ function buildServer({ env = process.env, provider = null, now = () => new Date(
       };
     }
 
-    const upstream = await proxyNeisSchoolMealRequest({
-      apiKey: config.keduInfoKey,
-      atptOfcdcScCode: normalized.atptOfcdcScCode,
-      sdSchulCode: normalized.sdSchulCode,
-      mlsvYmd: normalized.mlsvYmd,
-      mmealScCode: normalized.mmealScCode,
-      pIndex: normalized.pIndex,
-      pSize: normalized.pSize
-    });
+    let upstream;
+    try {
+      upstream = await proxyNeisSchoolMealRequest({
+        apiKey: config.keduInfoKey,
+        atptOfcdcScCode: normalized.atptOfcdcScCode,
+        sdSchulCode: normalized.sdSchulCode,
+        mlsvYmd: normalized.mlsvYmd,
+        mmealScCode: normalized.mmealScCode,
+        pIndex: normalized.pIndex,
+        pSize: normalized.pSize
+      });
+    } catch (error) {
+      reply.code(error.statusCode && error.statusCode >= 400 ? error.statusCode : 502);
+      return {
+        error: error.code || "proxy_error",
+        message: error.message
+      };
+    }
 
     reply.code(upstream.statusCode);
     reply.header("content-type", upstream.contentType);
