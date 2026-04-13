@@ -56,13 +56,18 @@ npx --yes skills add <owner/repo> \
   --skill real-estate-search \
   --skill korean-stock-search \
   --skill household-waste-info \
+  --skill mfds-drug-safety \
+  --skill mfds-food-safety \
   --skill joseon-sillok-search \
   --skill korean-patent-search \
   --skill korea-weather \
   --skill cheap-gas-nearby \
   --skill fine-dust-location \
   --skill han-river-water-level \
+  --skill subway-lost-property \
+  --skill geeknews-search \
   --skill daiso-product-search \
+  --skill market-kurly-search \
   --skill olive-young-search \
   --skill blue-ribbon-nearby \
   --skill kakao-bar-nearby \
@@ -71,7 +76,9 @@ npx --yes skills add <owner/repo> \
   --skill coupang-product-search \
   --skill bunjang-search \
   --skill used-car-price-search \
-  --skill korean-spell-check
+  --skill korean-spell-check \
+  --skill k-schoollunch-menu \
+  --skill korean-character-count
 ```
 
 인증이 필요한 기능만 부분 설치할 때도 `k-skill-setup` 은 같이 넣는다.
@@ -83,11 +90,15 @@ npx --yes skills add <owner/repo> \
   --skill ktx-booking \
   --skill korean-law-search \
   --skill real-estate-search \
+  --skill mfds-drug-safety \
+  --skill mfds-food-safety \
   --skill cheap-gas-nearby \
   --skill joseon-sillok-search \
   --skill korean-patent-search \
   --skill hipass-receipt \
   --skill seoul-subway-arrival \
+  --skill subway-lost-property \
+  --skill geeknews-search \
   --skill korea-weather \
   --skill fine-dust-location
 ```
@@ -244,7 +255,7 @@ npm run ci
 ### Node 패키지
 
 ```bash
-npm install -g @ohah/hwpjs kbo-game kleague-results lck-analytics toss-securities hipass-receipt k-lotto coupang-product-search used-car-price-search cheap-gas-nearby korean-law-mcp daiso bunjang-cli
+npm install -g @ohah/hwpjs kbo-game kleague-results lck-analytics toss-securities hipass-receipt k-lotto coupang-product-search used-car-price-search cheap-gas-nearby korean-law-mcp market-kurly-search daiso bunjang-cli
 export NODE_PATH="$(npm root -g)"
 ```
 
@@ -283,6 +294,13 @@ python3 scripts/patent_search.py --query "배터리"
 python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다."
 ```
 
+한국어 글자 수 세기 helper는 별도 외부 패키지 없이 `node` 18+ 만 있으면 된다.
+
+```bash
+node scripts/korean_character_count.js --text "가나다"
+node scripts/korean_character_count.js --text $'첫 줄\n둘째 줄🙂' --profile neis --format text
+```
+
 운영체제 정책이나 권한 때문에 전역 설치가 막히면, 임의의 대체 구현으로 넘어가지 말고 그 차단 사유를 사용자에게 설명한 뒤 다음 설치 단계를 정합니다.
 
 ## npx도 없으면
@@ -309,6 +327,7 @@ python3 scripts/korean_spell_check.py --text "아버지가방에들어가신다.
 - `korean-stock-search`
 - `household-waste-info`
 - `cheap-gas-nearby`
+- `k-schoollunch-menu` (hosted proxy에 `KEDU_INFO_KEY`가 배포된 경우 사용자 시크릿 불필요)
 
 관련 문서:
 
