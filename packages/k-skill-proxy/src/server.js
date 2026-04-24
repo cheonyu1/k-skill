@@ -13,7 +13,14 @@ const {
   normalizeMfdsDrugLookupQuery,
   normalizeMfdsFoodSafetyQuery
 } = require("./mfds");
+const {
+  fetchLhNoticeDetail,
+  fetchLhNoticeList,
+  normalizeLhNoticeDetailQuery,
+  normalizeLhNoticeSearchQuery
+} = require("./lh-notice");
 const { fetchTransactions, VALID_ASSET_TYPES, VALID_DEAL_TYPES } = require("./molit");
+const { fetchNaverNewsSearch, normalizeNaverNewsSearchQuery } = require("./naver-news");
 const { fetchNaverShoppingSearch, normalizeNaverShoppingSearchQuery } = require("./naver-shopping");
 const { fetchNearbyParkingLots } = require("./parking-lots");
 const { searchRegionCode } = require("./region-lookup");
@@ -728,6 +735,7 @@ function normalizeParkingLotSearchQuery(query) {
     throw new Error("radius must be between 1 and 50000.");
   }
 
+
   const publicOnlyRaw = trimOrNull(query.publicOnly ?? query.public_only);
   const publicOnly = publicOnlyRaw
     ? !["0", "false", "n", "no"].includes(publicOnlyRaw.toLowerCase())
@@ -1257,30 +1265,35 @@ function buildServer({ env = process.env, provider = null, now = () => new Date(
     }
   });
 
-  app.get("/health", async () => ({
-    ok: true,
-    service: config.proxyName,
-    port: config.port,
-    upstreams: {
-      airKoreaConfigured: Boolean(config.airKoreaApiKey),
-      kmaOpenApiConfigured: Boolean(config.kmaOpenApiKey),
-      blueRibbonConfigured: Boolean(config.blueRibbonSessionId),
-      seoulOpenApiConfigured: Boolean(config.seoulOpenApiKey),
-      hrfcoConfigured: Boolean(config.hrfcoApiKey),
-      opinetConfigured: Boolean(config.opinetApiKey),
-      molitConfigured: Boolean(config.molitApiKey),
-      data4libraryConfigured: Boolean(config.data4libraryAuthKey),
-      foodsafetyKoreaConfigured: Boolean(config.foodsafetyKoreaApiKey),
-      neisSchoolMealConfigured: Boolean(config.keduInfoKey),
-      krxConfigured: Boolean(config.krxApiKey),
-      naverShoppingConfigured: true,
-      naverSearchApiConfigured: Boolean(config.naverSearchClientId && config.naverSearchClientSecret)
-    },
-    auth: {
-      tokenRequired: false
-    },
-    timestamp: new Date().toISOString()
-  }));
+  app.get("/health", async () => {
+    const naverSearchKeysPresent = Boolean(config.naverSearchClientId && config.naverSearchClientSecret);
+    return {
+      ok: true,
+      service: config.proxyName,
+      port: config.port,
+      upstreams: {
+        airKoreaConfigured: Boolean(config.airKoreaApiKey),
+        kmaOpenApiConfigured: Boolean(config.kmaOpenApiKey),
+        blueRibbonConfigured: Boolean(config.blueRibbonSessionId),
+        seoulOpenApiConfigured: Boolean(config.seoulOpenApiKey),
+        hrfcoConfigured: Boolean(config.hrfcoApiKey),
+        opinetConfigured: Boolean(config.opinetApiKey),
+        molitConfigured: Boolean(config.molitApiKey),
+        lhNoticeConfigured: Boolean(config.molitApiKey),
+        data4libraryConfigured: Boolean(config.data4libraryAuthKey),
+        foodsafetyKoreaConfigured: Boolean(config.foodsafetyKoreaApiKey),
+        neisSchoolMealConfigured: Boolean(config.keduInfoKey),
+        krxConfigured: Boolean(config.krxApiKey),
+        naverShoppingConfigured: true,
+        naverSearchApiConfigured: naverSearchKeysPresent,
+        naverNewsApiConfigured: naverSearchKeysPresent
+      },
+      auth: {
+        tokenRequired: false
+      },
+      timestamp: new Date().toISOString()
+    };
+  });
 
   app.get("/B552584/:service/:operation", async (request, reply) => {
     const { service, operation } = request.params;
@@ -2077,6 +2090,168 @@ function buildServer({ env = process.env, provider = null, now = () => new Date(
     return payload;
   });
 
+  app.get("/v1/lh-notice/search", async (request, reply) => {
+    let normalized;
+
+    try {
+      normalized = normalizeLhNoticeSearchQuery(request.query || {});
+    } catch (error) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: error.message
+      };
+    }
+
+    const cacheKey = makeCacheKey({
+      route: "lh-notice-search",
+      ...normalized
+    });
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        proxy: {
+          ...cached.proxy,
+          cache: {
+            hit: true,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    if (!config.molitApiKey) {
+      reply.code(503);
+      return {
+        error: "upstream_not_configured",
+        message: "DATA_GO_KR_API_KEY is not configured on the proxy server.",
+        proxy: {
+          name: config.proxyName,
+          cache: {
+            hit: false,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    let body;
+    try {
+      body = await fetchLhNoticeList({
+        serviceKey: config.molitApiKey,
+        filters: normalized
+      });
+    } catch (error) {
+      reply.code(error.statusCode && error.statusCode >= 400 ? error.statusCode : 502);
+      return {
+        error: error.code || "proxy_error",
+        message: error.message,
+        upstream_code: error.upstreamCode || undefined,
+        proxy: {
+          name: config.proxyName,
+          cache: { hit: false, ttl_ms: config.cacheTtlMs }
+        }
+      };
+    }
+
+    const payload = {
+      ...body,
+      proxy: {
+        name: config.proxyName,
+        cache: {
+          hit: false,
+          ttl_ms: config.cacheTtlMs
+        },
+        requested_at: new Date().toISOString()
+      }
+    };
+
+    cache.set(cacheKey, payload, config.cacheTtlMs);
+    return payload;
+  });
+
+  app.get("/v1/lh-notice/detail", async (request, reply) => {
+    let normalized;
+
+    try {
+      normalized = normalizeLhNoticeDetailQuery(request.query || {});
+    } catch (error) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: error.message
+      };
+    }
+
+    const cacheKey = makeCacheKey({
+      route: "lh-notice-detail",
+      ...normalized
+    });
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        proxy: {
+          ...cached.proxy,
+          cache: {
+            hit: true,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    if (!config.molitApiKey) {
+      reply.code(503);
+      return {
+        error: "upstream_not_configured",
+        message: "DATA_GO_KR_API_KEY is not configured on the proxy server.",
+        proxy: {
+          name: config.proxyName,
+          cache: {
+            hit: false,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    let body;
+    try {
+      body = await fetchLhNoticeDetail({
+        serviceKey: config.molitApiKey,
+        filters: normalized
+      });
+    } catch (error) {
+      reply.code(error.statusCode && error.statusCode >= 400 ? error.statusCode : 502);
+      return {
+        error: error.code || "proxy_error",
+        message: error.message,
+        upstream_code: error.upstreamCode || undefined,
+        proxy: {
+          name: config.proxyName,
+          cache: { hit: false, ttl_ms: config.cacheTtlMs }
+        }
+      };
+    }
+
+    const payload = {
+      ...body,
+      proxy: {
+        name: config.proxyName,
+        cache: {
+          hit: false,
+          ttl_ms: config.cacheTtlMs
+        },
+        requested_at: new Date().toISOString()
+      }
+    };
+
+    cache.set(cacheKey, payload, config.cacheTtlMs);
+    return payload;
+  });
+
   app.get("/v1/mfds/drug-safety/lookup", async (request, reply) => {
     let normalized;
 
@@ -2559,6 +2734,94 @@ function buildServer({ env = process.env, provider = null, now = () => new Date(
         q: normalized.query,
         limit: normalized.limit,
         page: normalized.page,
+        sort: normalized.sort
+      },
+      meta: result.meta,
+      upstream: result.upstream,
+      proxy: {
+        name: config.proxyName,
+        cache: {
+          hit: false,
+          ttl_ms: config.cacheTtlMs
+        },
+        requested_at: new Date().toISOString()
+      }
+    };
+
+    cache.set(cacheKey, payload, config.cacheTtlMs);
+    return payload;
+  });
+
+
+  app.get("/v1/naver-news/search", async (request, reply) => {
+    let normalized;
+
+    try {
+      normalized = normalizeNaverNewsSearchQuery(request.query || {});
+    } catch (error) {
+      reply.code(400);
+      return {
+        error: "bad_request",
+        message: error.message
+      };
+    }
+
+    const cacheKey = makeCacheKey({
+      route: "naver-news-search",
+      q: normalized.query.toLowerCase(),
+      display: normalized.display,
+      start: normalized.start,
+      sort: normalized.sort
+    });
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        proxy: {
+          ...cached.proxy,
+          cache: {
+            hit: true,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+    }
+
+    let result;
+    try {
+      result = await fetchNaverNewsSearch({
+        ...normalized,
+        clientId: config.naverSearchClientId,
+        clientSecret: config.naverSearchClientSecret
+      });
+    } catch (error) {
+      reply.code(error.statusCode && error.statusCode >= 400 ? error.statusCode : 502);
+      const payload = {
+        error: error.code || "proxy_error",
+        message: error.message,
+        proxy: {
+          name: config.proxyName,
+          cache: {
+            hit: false,
+            ttl_ms: config.cacheTtlMs
+          }
+        }
+      };
+      if (error.upstreamStatusCode) {
+        payload.upstream = {
+          status_code: error.upstreamStatusCode,
+          body_snippet: error.upstreamBodySnippet || null
+        };
+      }
+      return payload;
+    }
+
+    const payload = {
+      items: result.items,
+      query: {
+        q: normalized.query,
+        display: normalized.display,
+        start: normalized.start,
         sort: normalized.sort
       },
       meta: result.meta,
@@ -3193,6 +3456,8 @@ module.exports = {
   normalizeKmaForecastQuery,
   normalizeKoreanStockLookupQuery,
   normalizeKoreanStockSearchQuery,
+  normalizeLhNoticeDetailQuery,
+  normalizeLhNoticeSearchQuery,
   normalizeOpinetAroundQuery,
   normalizeOpinetDetailQuery,
   normalizeNeisSchoolMealQuery,
